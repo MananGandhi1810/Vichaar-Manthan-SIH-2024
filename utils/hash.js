@@ -5,7 +5,7 @@ const hash = async (str) => {
   return hashedStr;
 };
 
-const compare = async (actualStr, expectedStr) => {
+const compare = async (expectedStr, actualStr) => {
   const result = await argon2.verify(expectedStr, actualStr);
   return result;
 };

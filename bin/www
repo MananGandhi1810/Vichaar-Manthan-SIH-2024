@@ -9,6 +9,7 @@ import debug from "debug";
 import http from "http";
 import https from "https";
 import fs from "fs";
+import { connectDB } from "../db/index.js";
 
 /**
  * Get port from environment and store in Express.
@@ -38,6 +39,7 @@ if (
  * Listen on provided port, on all network interfaces.
  */
 
+await connectDB();
 server.listen(port);
 server.on("error", onError);
 server.on("listening", onListening);
