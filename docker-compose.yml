@@ -1,0 +1,27 @@
+services:
+    vichaar-manthan-sih-express:
+        image: spirax/vichaar-manthan-sih:latest
+        restart: unless-stopped
+        ports:
+            - 3000:3000/tcp
+        volumes:
+            - ./.env:/usr/src/app/.env
+            - /path/to/ssl/fullchain.pem:/usr/src/app/ssl/fullchain.pem
+            - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
+        environment:
+            NODE_ENV: production
+        command: sh -c "npm run start"
+    vichaar-manthan-sih-db:
+        image: mongo
+        restart: unless-stopped
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: <password>
+            MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
+        ports:
+            - 27017:27017/tcp
+        volumes:
+            - vichaar-manthan-sih-db-data:/data/db
+
+volume:
+    vichaar-manthan-sih-db-data:
