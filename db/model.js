@@ -16,7 +16,6 @@ const userSchema = new Schema({
     unique: true,
     required: true,
   },
-  salt: String,
   interviews: [
     {
       role: String,
