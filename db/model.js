@@ -1,8 +1,5 @@
 import { model, Schema } from "mongoose";
-import {
-  validateEmail,
-  validatePhoneNumber,
-} from "../utils/validators";
+import { validateEmail, validatePhoneNumber } from "../utils/validators.js";
 
 const userSchema = new Schema({
   name: { type: String, required: true },
@@ -25,7 +22,7 @@ const userSchema = new Schema({
       role: String,
       resume: Buffer,
       time: {
-        type: Data,
+        type: Date,
         default: Date.now,
       },
       questions: [
