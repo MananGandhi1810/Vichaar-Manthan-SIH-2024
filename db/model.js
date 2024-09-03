@@ -1,18 +1,23 @@
 import { model, Schema } from "mongoose";
 import {
   validateEmail,
-  validatePassword,
   validatePhoneNumber,
 } from "../utils/validators";
 
 const userSchema = new Schema({
-  name: { type: String },
-  email: { type: String, validate: (val) => validateEmail(val), unique: true },
-  password: String,
+  name: { type: String, required: true },
+  email: {
+    type: String,
+    validate: (val) => validateEmail(val),
+    unique: true,
+    required: true,
+  },
+  password: { type: String, required: true },
   phoneNum: {
     type: String,
     validate: (val) => validatePhoneNumber(val),
     unique: true,
+    required: true,
   },
   salt: String,
   interviews: [
