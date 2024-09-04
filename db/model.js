@@ -18,8 +18,8 @@ const userSchema = new Schema({
     },
     interviews: [
         {
-            role: String,
-            resume: Buffer,
+            role: { type: String, required: true },
+            resume: { type: Buffer, required: true },
             isResumeProcessed: {
                 type: Boolean,
                 default: () => false,
