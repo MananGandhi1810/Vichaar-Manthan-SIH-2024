@@ -27,17 +27,15 @@ const uploadResumeHandler = async (req, res) => {
     const { role } = req.params;
 
     try {
-        if (!req.file) {
+        if (!req.files.resume) {
             return res.status(400).json({
                 success: false,
                 message: "No resume was attached",
                 data: null,
             });
         }
-
-        const pdfData = req.file.buffer;
-
-        // TODO: Save using mongoose
+        
+        // Update the user's resume and push it to the database
 
         await sendQueueMessage("resume-upload", user.email);
 

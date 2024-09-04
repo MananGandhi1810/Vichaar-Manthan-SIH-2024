@@ -3,11 +3,14 @@ import cors from "cors";
 import authRouter from "./router/auth.js";
 import userRouter from "./router/user.js";
 import logger from "morgan";
+import fileUpload from "express-fileupload";
 
 const app = express();
 
 app.use(logger("dev"));
 app.use(express.json());
+app.use(fileUpload());
+
 app.use(
     cors({
         origin: true,

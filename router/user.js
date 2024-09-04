@@ -5,7 +5,7 @@ import { checkAuth } from "../middlewares/auth.js";
 
 var userRouter = Router();
 
-userRouter.post("/resume", checkAuth, uploadResumeHandler);
-userRouter.get("/resume", checkAuth, getResumeHandler);
+userRouter.post("/resume/:role", checkAuth, uploadResumeHandler);
+userRouter.get("/resume/:role", checkAuth, getResumeHandler);
 
 export default userRouter;
