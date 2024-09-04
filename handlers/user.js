@@ -2,6 +2,14 @@ const getResumeHandler = async (req, res) => {
     const user = req.user;
     const { role } = req.params;
 
+    if (user.interviews.length == 0) {
+        return res.status(404).json({
+            success: false,
+            message: "No resume found",
+            data: null,
+        });
+    }
+
     return res.status(200).json({
         success: true,
         message: "User's resume",
