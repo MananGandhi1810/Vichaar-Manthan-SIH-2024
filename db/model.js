@@ -20,6 +20,10 @@ const userSchema = new Schema({
         {
             role: String,
             resume: Buffer,
+            isResumeProcessed: {
+                type: Boolean,
+                default: () => false;
+            },
             time: {
                 type: Date,
                 default: Date.now,
