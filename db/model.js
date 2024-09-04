@@ -22,7 +22,7 @@ const userSchema = new Schema({
             resume: Buffer,
             isResumeProcessed: {
                 type: Boolean,
-                default: () => false;
+                default: () => false,
             },
             time: {
                 type: Date,
