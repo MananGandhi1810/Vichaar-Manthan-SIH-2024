@@ -5,7 +5,9 @@ const getResumeHandler = async (req, res) => {
     const user = req.user;
     const { role } = req.params;
 
-    if (user.interviews.length == 0) {
+    const userResumes = user.interviews.filter((e) => e.role == role);
+
+    if (userResumes.length == 0) {
         return res.status(404).json({
             success: false,
             message: "No resume found",
@@ -18,7 +20,7 @@ const getResumeHandler = async (req, res) => {
         message: "User's resume",
         data: {
             role: role,
-            resume: user.interviews,
+            resume: userResumes.sort((a, b) => a.time - b.time)[0],
         },
     });
 };
@@ -44,7 +46,13 @@ const uploadResumeHandler = async (req, res) => {
         });
         dbUser.save();
 
-        await sendQueueMessage("resume-upload", user.email);
+        await sendQueueMessage(
+            "resume-upload",
+            JSON.stringify({
+                email: user.email,
+                role: role,
+            }),
+        );
 
         res.status(200).json({
             success: true,
