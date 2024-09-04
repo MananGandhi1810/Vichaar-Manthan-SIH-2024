@@ -6,11 +6,12 @@ services:
             - 3000:3000/tcp
         volumes:
             - ./.env:/usr/src/app/.env
-            - /path/to/ssl/fullchain.pem:/usr/src/app/ssl/fullchain.pem
-            - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
+            # - /path/to/ssl/fullchain.pem:/usr/src/app/ssl/fullchain.pem
+            # - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
         environment:
             NODE_ENV: production
         command: sh -c "npm run start"
+
     vichaar-manthan-sih-db:
         image: mongo
         restart: unless-stopped
@@ -23,5 +24,5 @@ services:
         volumes:
             - vichaar-manthan-sih-db-data:/data/db
 
-volume:
+volumes:
     vichaar-manthan-sih-db-data:

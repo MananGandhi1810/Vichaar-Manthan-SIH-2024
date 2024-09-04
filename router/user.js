@@ -1,7 +1,5 @@
 import { Router } from "express";
-import {
-  userResumeHandler,
-} from "../handlers/user.js";
+import { userResumeHandler } from "../handlers/user.js";
 
 import { checkAuth } from "../middlewares/auth.js";
 
