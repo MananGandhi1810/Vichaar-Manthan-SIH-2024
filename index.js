@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import authRouter from "./router/auth.js";
+import userRouter from "./router/user.js";
 import logger from "morgan";
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(
 );
 
 app.use("/auth", authRouter);
+app.use("/user", userRouter);
 
 app.use(function (req, res, next) {
     res.status(404).json({

@@ -1,38 +1,47 @@
-const mongoose = require("mongoose");
-
-const userResumeHandler = async (req, res) => {
+const getResumeHandler = async (req, res) => {
     const user = req.user;
     const { role } = req.params;
 
-    if (req.method === "GET") {
-        return res.status(200).json({
+    return res.status(200).json({
+        success: true,
+        message: "User's resume",
+        data: {
+            role: role,
+            resume: user.interviews,
+        },
+    });
+};
+
+const uploadResumeHandler = async (req, res) => {
+    const user = req.user;
+    const { role } = req.params;
+
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "No resume was attached",
+                data: null,
+            });
+        }
+
+        const pdfData = req.file.buffer;
+
+        // Save using mongoose
+
+        res.status(200).json({
             success: true,
-            message: "User's resume",
-            data: {
-                role: role,
-                resume: user.resume[role],
-            },
+            message: "Resume uploaded succesfully",
+            data: {},
+        });
+    } catch (error) {
+        console.error("Error uploading PDF:", error);
+        res.status(500).json({
+            success: false,
+            message: "An error occured when trying to upload the resume",
+            data: null,
         });
     }
-
-    if (req.method === "POST") {
-        try {
-            if (!req.file) {
-                return res.status(400).send("No PDF file uploaded");
-            }
-
-            const pdfData = req.file.buffer;
-
-            // Save using mongoose
-
-            res.status(200).send("PDF uploaded successfully");
-        } catch (error) {
-            console.error("Error uploading PDF:", error);
-            res.status(500).send("Internal server error");
-        }
-    }
 };
 
-module.exports = {
-    userResumeHandler,
-};
+export { getResumeHandler, uploadResumeHandler };

@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { userResumeHandler } from "../handlers/user.js";
+import { getResumeHandler, uploadResumeHandler } from "../handlers/user.js";
 
 import { checkAuth } from "../middlewares/auth.js";
 
-var router = Router();
+var userRouter = Router();
 
-router.post("/resume", checkAuth, userResumeHandler);
-router.get("/resume", checkAuth, userResumeHandler);
+userRouter.post("/resume", checkAuth, uploadResumeHandler);
+userRouter.get("/resume", checkAuth, getResumeHandler);
 
-export default router;
+export default userRouter;
