@@ -1,3 +1,4 @@
+import { User } from "../db/model.js";
 import { sendQueueMessage } from "../utils/queue-manager.js";
 
 const getResumeHandler = async (req, res) => {
@@ -34,8 +35,14 @@ const uploadResumeHandler = async (req, res) => {
                 data: null,
             });
         }
-        
-        // Update the user's resume and push it to the database
+
+        const dbUser = await User.findOne({ email: user.email });
+        dbUser.interviews.push({
+            role: role,
+            resumeData: req.files.resume.data,
+            resumeName: req.files.resume.name,
+        });
+        dbUser.save();
 
         await sendQueueMessage("resume-upload", user.email);
 

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload PDF Form</title>
+</head>
+<body>
+
+  <h2>Upload Your Resume</h2>
+
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" id="pdfFile" name="resume" accept=".pdf" required>
+
+    <label for="roleSelect">Select Role:</label>
+    <select id="roleSelect" name="role">
+      <option value="applicant">Applicant</option>
+      <option value="recruiter">Recruiter</option>
+      <option value="administrator">Administrator</option>
+      </select>
+
+    <button type="submit">Upload</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const roleSelect = document.getElementById('roleSelect');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const selectedRole = roleSelect.value;
+
+      // Get the authorization token (replace with your actual token retrieval logic)
+      const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVGVzdCBVc2VyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAZ21haWwuY29tIiwicGhvbmVOdW0iOiIrOTE5NzY5MDM4NDczIiwiaWF0IjoxNzI1Mzg2NjgzfQ.1k3Zd3rn3e1vx54QPrWx4tsXx2a6rEjfmJAbNq-5jxU'; // Or retrieve it from local storage, etc.
+
+      fetch(`http://localhost:3000/user/resume/${selectedRole}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'Authorization': `Bearer ${authToken}` 
+        }
+    })
+      .then(response => {
+        if (response.ok) {
+          alert('PDF uploaded successfully!');
+        } else {
+          alert('Error uploading PDF. Please try again.');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again later.');
+      });
+    });
+  </script>
+
+</body>
+</html>

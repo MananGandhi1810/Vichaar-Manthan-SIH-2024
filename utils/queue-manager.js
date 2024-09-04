@@ -4,13 +4,15 @@ import dotenv from "dotenv";
 dotenv.config();
 var isConnected = false;
 
+var producer = undefined;
+
 try {
     const kafka = new Kafka({
         clientId: "express-backend",
-        brokers: [process.env.KAFKA_BROKER ?? "kafka:9093"]
+        brokers: [process.env.KAFKA_BROKER ?? "kafka:9093"],
     });
 
-    const producer = kafka.producer();
+    producer = kafka.producer();
     await producer.connect();
     isConnected = true;
     console.log("Connected to Kafka Broker as a Producer");
