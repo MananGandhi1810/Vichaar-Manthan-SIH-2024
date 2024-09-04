@@ -9,4 +9,4 @@ COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY . . 
 EXPOSE 3000
 USER node
-CMD ["npm", "start"]
+CMD ["sh", "-c", "npm run start"]

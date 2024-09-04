@@ -1,5 +1,5 @@
 services:
-    vichaar-manthan-sih-express:
+    express:
         image: spirax/vichaar-manthan-sih:latest
         restart: unless-stopped
         ports:
@@ -10,19 +10,43 @@ services:
             # - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
         environment:
             NODE_ENV: production
-        command: sh -c "npm run start"
+        depends_on:
+            - mongo
+            - kafka
 
-    vichaar-manthan-sih-db:
-        image: mongo
+    mongo:
+        image: mongo:jammy
         restart: unless-stopped
         environment:
-            MONGO_INITDB_ROOT_USERNAME: root
-            MONGO_INITDB_ROOT_PASSWORD: <password>
+            SIH_ADMIN_USERNAME: sih-admin
+            SIH_ADMIN_PASSWORD: <password>
             MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
         ports:
             - 27017:27017/tcp
         volumes:
-            - vichaar-manthan-sih-db-data:/data/db
+            - db-data:/data/db
+            - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+    zookeeper:
+        image: wurstmeister/zookeeper:latest
+        ports:
+            - "2181:2181"
+
+    kafka:
+        image: wurstmeister/kafka:latest
+        restart: unless-stopped
+        ports:
+            - 9092:9092/tcp
+        expose:
+            - "9093"
+        environment:
+            KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9093,OUTSIDE://localhost:9092
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+            KAFKA_LISTENERS: INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+            KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+            KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+        depends_on:
+            - zookeeper
 
 volumes:
-    vichaar-manthan-sih-db-data:
+    db-data:
