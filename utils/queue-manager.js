@@ -11,11 +11,11 @@ const kafka = new Kafka({
 const producer = kafka.producer();
 await producer.connect();
 
-const send = async (topic, message) => {
+const sendQueueMessage = async (topic, message) => {
     await producer.send({
         topic,
         messages: [{ value: message }],
     });
 };
 
-export { send };
+export { sendQueueMessage };

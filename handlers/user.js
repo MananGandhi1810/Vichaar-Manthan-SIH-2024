@@ -1,3 +1,5 @@
+import { sendQueueMessage } from "../utils/queue-manager.js";
+
 const getResumeHandler = async (req, res) => {
     const user = req.user;
     const { role } = req.params;
@@ -35,7 +37,9 @@ const uploadResumeHandler = async (req, res) => {
 
         const pdfData = req.file.buffer;
 
-        // Save using mongoose
+        // TODO: Save using mongoose
+
+        await sendQueueMessage("resume-upload", user.email);
 
         res.status(200).json({
             success: true,
