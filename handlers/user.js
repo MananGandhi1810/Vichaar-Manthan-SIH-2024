@@ -24,6 +24,7 @@ const getResumeHandler = async (req, res) => {
         },
     });
 };
+
 const getResumeWithIdHandler = async (req, res) => {
     const user = req.user;
     const { role, id } = req.params;
@@ -94,4 +95,47 @@ const uploadResumeHandler = async (req, res) => {
     }
 };
 
-export { getResumeHandler, getResumeWithIdHandler, uploadResumeHandler };
+const getQuestionsHandler = async (req, res) => {
+    const user = req.user;
+    const { role, id } = req.params;
+
+    const userInterviews = user.interviews.filter(
+        (e) => e.role == role && e.id == id,
+    );
+
+    if (userInterviews.length == 0) {
+        return res.status(404).json({
+            success: false,
+            message: "No interviews found",
+            data: null,
+        });
+    }
+
+    const userQuestions = userInterviews.sort((a, b) => a.time - b.time)[0];
+
+    if (
+        userInterviews.sort((a, b) => a.time - b.time)[0].questions.length == 0
+    ) {
+        return res.status(404).json({
+            success: false,
+            message: "Questions are being processed",
+            data: null,
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "Questions found",
+        data: {
+            role: role,
+            questions: userQuestions.questions,
+        },
+    });
+};
+
+export {
+    getResumeHandler,
+    getResumeWithIdHandler,
+    uploadResumeHandler,
+    getQuestionsHandler,
+};
