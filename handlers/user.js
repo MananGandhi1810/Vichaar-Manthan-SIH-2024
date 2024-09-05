@@ -1,3 +1,4 @@
+import { raw } from "express";
 import { User } from "../db/model.js";
 import { sendQueueMessage } from "../utils/queue-manager.js";
 
@@ -19,7 +20,6 @@ const getResumeHandler = async (req, res) => {
         success: true,
         message: "User's resume",
         data: {
-            role: role,
             resume: userResumes.sort((a, b) => a.time - b.time)[0],
         },
     });
@@ -136,7 +136,7 @@ const getQuestionsHandler = async (req, res) => {
 const setAnswerHandler = async (req, res) => {
     const user = req.user;
     const { role, id, index } = req.params;
-    const { answers } = req.body;
+    const { answer } = req.body;
 
     const dbUser = await User.findOne({
         email: user.email,
@@ -164,9 +164,37 @@ const setAnswerHandler = async (req, res) => {
         });
     }
 
-    userQuestions.questions[index].answers = answers;
+    if (index >= userQuestions.questions.length) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid question index",
+            data: null,
+        });
+    }
+
+    if (!answer) {
+        return res.status(400).json({
+            success: false,
+            message: "Answer cannot be empty",
+            data: null,
+        });
+    }
+
+    userQuestions.questions[index].userAnswer = answer;
 
     dbUser.save();
+
+    if (userQuestions.questions.filter((e) => e.userAnswer == null).length == 0) {
+        await sendQueueMessage(
+            "feedback-request",
+            JSON.stringify({
+                email: user.email,
+                role: role,
+                id: id,
+            }),
+        );
+    }
+
 
     return res.status(200).json({
         success: true,
@@ -205,7 +233,15 @@ const getFeedbackHandler = async (req, res) => {
         });
     }
 
-    if (userQuestions.feedback == null) {
+    if (userQuestions.questions.filter((e) => e.userAnswer == null).length > 0) {
+        return res.status(404).json({
+            success: false,
+            message: "Answers are not completed",
+            data: null,
+        });
+    }
+
+    if (!userQuestions.feedback) {
         return res.status(404).json({
             success: false,
             message: "Feedback is being processed",
@@ -219,6 +255,7 @@ const getFeedbackHandler = async (req, res) => {
         data: {
             role: role,
             feedback: userQuestions.feedback,
+            rating: userQuestions.rating,
         },
     });
 }
