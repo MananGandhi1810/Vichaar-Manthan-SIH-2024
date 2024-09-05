@@ -21,7 +21,7 @@ services:
             MONGO_INITDB_ROOT_USERNAME: mongo-admin
             MONGO_INITDB_ROOT_PASSWORD: <Generate a strong password>
             SIH_ADMIN_USERNAME: sih-admin
-            SIH_ADMIN_PASSWORD: v$Q5blNx^3i!hoZ$
+            SIH_ADMIN_PASSWORD: <Generate a strong password>
             MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
         ports:
             - 2605:27017/tcp
