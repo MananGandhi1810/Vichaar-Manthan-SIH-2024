@@ -6,7 +6,9 @@ import {
     validatePhoneNumber,
 } from "../utils/validators.js";
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 
+dotenv.config();
 const jwtSecret = process.env.JWT_SECRET;
 
 const registerHandler = async (req, res) => {
