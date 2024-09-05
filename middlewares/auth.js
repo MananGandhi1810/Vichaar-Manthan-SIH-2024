@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 
 dotenv.config();
 const jwtSecret = process.env.JWT_SECRET;
+console.log(jwtSecret);
 
 const checkAuth = async (req, res, next) => {
     const { authorization } = req.headers;
