@@ -7,7 +7,7 @@ import {
 } from "../utils/validators.js";
 import jwt from "jsonwebtoken";
 
-const jwtSecret = process.env.JWT_SECRET || "jwtsecret";
+const jwtSecret = process.env.JWT_SECRET;
 
 const registerHandler = async (req, res) => {
     const { name, email, phoneNum, password } = req.body;

@@ -1,4 +1,3 @@
-import { raw } from "express";
 import { User } from "../db/model.js";
 import { sendQueueMessage } from "../utils/queue-manager.js";
 
