@@ -81,6 +81,7 @@ const uploadResumeHandler = async (req, res) => {
             JSON.stringify({
                 email: user.email,
                 role: role,
+                id: generatedId,
             }),
         );
 
