@@ -24,6 +24,31 @@ const getResumeHandler = async (req, res) => {
         },
     });
 };
+const getResumeWithIdHandler = async (req, res) => {
+    const user = req.user;
+    const { role, id } = req.params;
+
+    const userResumes = user.interviews.filter(
+        (e) => e.role == role && e.id == id,
+    );
+
+    if (userResumes.length == 0) {
+        return res.status(404).json({
+            success: false,
+            message: "No resume found",
+            data: null,
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "User's resume",
+        data: {
+            role: role,
+            resume: userResumes.sort((a, b) => a.time - b.time)[0],
+        },
+    });
+};
 
 const uploadResumeHandler = async (req, res) => {
     const user = req.user;
@@ -69,4 +94,4 @@ const uploadResumeHandler = async (req, res) => {
     }
 };
 
-export { getResumeHandler, uploadResumeHandler };
+export { getResumeHandler, getResumeWithIdHandler, uploadResumeHandler };
