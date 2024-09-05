@@ -1,5 +1,6 @@
 import { model, Schema } from "mongoose";
 import { validateEmail, validatePhoneNumber } from "../utils/validators.js";
+import { generate } from "../utils/random-gen.js";
 
 const userSchema = new Schema({
     name: { type: String, required: true },
@@ -18,6 +19,7 @@ const userSchema = new Schema({
     },
     interviews: [
         {
+            id: { type: Number, required: true, default: () => generate(6) },
             role: { type: String, required: true },
             resumeName: { type: String, required: true },
             resumeData: { type: Buffer, required: true },

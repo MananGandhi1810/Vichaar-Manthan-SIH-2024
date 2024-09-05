@@ -19,7 +19,7 @@ services:
         restart: unless-stopped
         environment:
             SIH_ADMIN_USERNAME: sih-admin
-            SIH_ADMIN_PASSWORD: <password>
+            SIH_ADMIN_PASSWORD: sih-password
             MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
         ports:
             - 27017:27017/tcp
