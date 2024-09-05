@@ -70,6 +70,12 @@ const uploadResumeHandler = async (req, res) => {
             resumeName: req.files.resume.name,
         });
         dbUser.save();
+        const generatedId = dbUser.interviews.find(
+            (e) =>
+                e.role == role &&
+                e.resumeData == resumeData &&
+                e.resumeName == resumeName,
+        ).id;
 
         await sendQueueMessage(
             "resume-upload",
@@ -82,7 +88,9 @@ const uploadResumeHandler = async (req, res) => {
         res.status(200).json({
             success: true,
             message: "Resume uploaded succesfully",
-            data: {},
+            data: {
+                resumeId: generatedId,
+            },
         });
     } catch (error) {
         console.error("Error uploading PDF:", error);
@@ -183,7 +191,9 @@ const setAnswerHandler = async (req, res) => {
 
     dbUser.save();
 
-    if (userQuestions.questions.filter((e) => e.userAnswer == null).length == 0) {
+    if (
+        userQuestions.questions.filter((e) => e.userAnswer == null).length == 0
+    ) {
         await sendQueueMessage(
             "feedback-request",
             JSON.stringify({
@@ -194,13 +204,12 @@ const setAnswerHandler = async (req, res) => {
         );
     }
 
-
     return res.status(200).json({
         success: true,
         message: "Answers saved",
         data: {},
     });
-}
+};
 
 const getFeedbackHandler = async (req, res) => {
     const user = req.user;
@@ -232,7 +241,9 @@ const getFeedbackHandler = async (req, res) => {
         });
     }
 
-    if (userQuestions.questions.filter((e) => e.userAnswer == null).length > 0) {
+    if (
+        userQuestions.questions.filter((e) => e.userAnswer == null).length > 0
+    ) {
         return res.status(404).json({
             success: false,
             message: "Answers are not completed",
@@ -257,8 +268,7 @@ const getFeedbackHandler = async (req, res) => {
             rating: userQuestions.rating,
         },
     });
-}
-
+};
 
 export {
     getResumeHandler,
