@@ -133,9 +133,102 @@ const getQuestionsHandler = async (req, res) => {
     });
 };
 
+const setAnswerHandler = async (req, res) => {
+    const user = req.user;
+    const { role, id, index } = req.params;
+    const { answers } = req.body;
+
+    const dbUser = await User.findOne({
+        email: user.email,
+    });
+
+    const userInterviews = dbUser.interviews.filter(
+        (e) => e.role == role && e.id == id,
+    );
+
+    if (userInterviews.length == 0) {
+        return res.status(404).json({
+            success: false,
+            message: "No interviews found",
+            data: null,
+        });
+    }
+
+    const userQuestions = userInterviews.sort((a, b) => a.time - b.time)[0];
+
+    if (userQuestions.questions.length == 0) {
+        return res.status(404).json({
+            success: false,
+            message: "Questions are being processed",
+            data: null,
+        });
+    }
+
+    userQuestions.questions[index].answers = answers;
+
+    dbUser.save();
+
+    return res.status(200).json({
+        success: true,
+        message: "Answers saved",
+        data: {},
+    });
+}
+
+const getFeedbackHandler = async (req, res) => {
+    const user = req.user;
+    const { role, id } = req.params;
+
+    const dbUser = await User.findOne({
+        email: user.email,
+    });
+
+    const userInterviews = dbUser.interviews.filter(
+        (e) => e.role == role && e.id == id,
+    );
+
+    if (userInterviews.length == 0) {
+        return res.status(404).json({
+            success: false,
+            message: "No interviews found",
+            data: null,
+        });
+    }
+
+    const userQuestions = userInterviews.sort((a, b) => a.time - b.time)[0];
+
+    if (userQuestions.questions.length == 0) {
+        return res.status(404).json({
+            success: false,
+            message: "Questions are being processed",
+            data: null,
+        });
+    }
+
+    if (userQuestions.feedback == null) {
+        return res.status(404).json({
+            success: false,
+            message: "Feedback is being processed",
+            data: null,
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "Feedback found",
+        data: {
+            role: role,
+            feedback: userQuestions.feedback,
+        },
+    });
+}
+
+
 export {
     getResumeHandler,
     getResumeWithIdHandler,
     uploadResumeHandler,
     getQuestionsHandler,
+    setAnswerHandler,
+    getFeedbackHandler,
 };
