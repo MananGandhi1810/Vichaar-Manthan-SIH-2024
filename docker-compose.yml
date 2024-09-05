@@ -18,7 +18,7 @@ services:
         image: mongo:jammy
         restart: unless-stopped
         environment:
-            MONGO_INITDB_ROOT_USERNAME: sih-admin
+            MONGO_INITDB_ROOT_USERNAME: mongo-admin
             MONGO_INITDB_ROOT_PASSWORD: <Generate a strong password>
             SIH_ADMIN_USERNAME: sih-admin
             SIH_ADMIN_PASSWORD: v$Q5blNx^3i!hoZ$
