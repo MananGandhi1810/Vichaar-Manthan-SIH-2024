@@ -12,7 +12,6 @@ import http from "http";
 import https from "https";
 import fs from "fs";
 import { connectDB } from "../db/index.js";
-import { io } from "../socket/index.js";
 
 /**
  * Get port from environment and store in Express.
@@ -43,7 +42,6 @@ if (
  */
 
 await connectDB();
-io.attach(server);
 server.listen(port);
 server.on("error", onError);
 server.on("listening", onListening);
