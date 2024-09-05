@@ -3,6 +3,8 @@
 /**
  * Module dependencies.
  */
+import dotenv from "dotenv";
+dotenv.config();
 
 import app from "../index.js";
 import debug from "debug";

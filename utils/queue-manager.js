@@ -1,7 +1,5 @@
 import { Kafka } from "kafkajs";
-import dotenv from "dotenv";
 
-dotenv.config();
 var isConnected = false;
 
 var producer = undefined;
