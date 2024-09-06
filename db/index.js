@@ -4,7 +4,7 @@ export let dbInstance = undefined;
 
 const connectDB = async () => {
     try {
-        const connectionInstance = await mongoose.connect("mongodb+srv://manan:sih-vichaar-manthan-123@db.sbgh8.mongodb.net/?retryWrites=true&w=majority&appName=DB");
+        const connectionInstance = await mongoose.connect(process.env.DB_URI);
         dbInstance = connectionInstance;
         console.log("Connected to Database");
     } catch (e) {
