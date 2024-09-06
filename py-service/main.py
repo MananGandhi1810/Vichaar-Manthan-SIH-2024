@@ -1,26 +1,50 @@
 import pymongo
 import os
 import re
+import json
 from pymongo import MongoClient
+from kafka import KafkaConsumer
 import google.generativeai as palm
 from sentence_transformers import SentenceTransformer, util
 from langchain.document_loaders import PyPDFLoader # for reaading the pdf
 
-def get_latest_resume_data_by_email(email):
+consumer1 = KafkaConsumer(
+    'resume-upload',
+    bootstrap_servers = 'localhost:9093'
+)
+
+consumer2 = KafkaConsumer(
+    'feedback-request',
+    bootstrap_servers = 'localhost:9093'
+)
+
+def kafkamessage1(consumer1):
+    for message in consumer1:
+        data = json.loads(message)
+        email = data['email']
+        role = data['role']
+        interview_id = data['id']
+
+        return email,role,interview_id
+
+email,role,interview_id = kafkamessage1(consumer1)
+
+
+def get_resume_data_by_email_role_id(email, role, interview_id):
     client = MongoClient('mongodb://sih-admin:vQ5blNx3ihoZ@20.207.85.19/vichaar_manthan_sih_db?retryWrites=true&ssl=false')  # Replace with your MongoDB URL
-    db = client['vichaar_manthan_sih_db']  # Replace 'your_database' with your database name
-    collection = db['users']  # Replace 'your_collection' with your collection name
+    db = client['vichaar_manthan_sih_db']  # Replace with your database name
+    collection = db['users']  # Replace with your collection name
 
     # Find the user by email
     user = collection.find_one({'email': email})
     
     if user and 'interviews' in user:
-        # Sort interviews by time to get the latest one
-        latest_interview = max(user['interviews'], key=lambda x: x['time'])
-        resume_data = latest_interview.get('resumeData')
-        return resume_data
-    else:
-        return None
+        # Filter interviews by matching both role and id
+        for interview in user['interviews']:
+            if interview['role'] == role and interview['id'] == interview_id:
+                resume_data = interview.get('resumeData')
+                return resume_data
+    return None  # If no matching interview is found
     
 #Converting binary content to text from MongoDB
 
@@ -116,7 +140,7 @@ def calculate_similarity_score(given_answers, expected_answers):
 # Example usage:
 email = 'itsspirax@gmail.com'  # Replace with the actual email of the user
 # Get the latest resumeData
-resume_data = get_latest_resume_data_by_email(email)
+resume_data = get_resume_data_by_email_role_id(email, role, interview_id)
 print(resume_data)
 
 resume_text = binary2text(resume_data)
