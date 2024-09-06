@@ -1,4 +1,3 @@
-import pymongo
 import os
 import re
 import json
@@ -6,21 +5,21 @@ from pymongo import MongoClient
 from kafka import KafkaConsumer
 import google.generativeai as palm
 from sentence_transformers import SentenceTransformer, util
-from langchain_community.document_loaders import PyPDFLoader  # for reaading the pdf
+from langchain_community.document_loaders import PyPDFLoader
+from dotenv import load_dotenv
 
-consumer1 = KafkaConsumer("resume-upload", bootstrap_servers="localhost:9092")
+load_dotenv()
 
-consumer2 = KafkaConsumer("feedback-request", bootstrap_servers="localhost:9092")
-
-client = MongoClient(
-    r"mongodb://sih-admin:%3Cpassword%3E@localhost/vichaar_manthan_sih_db?retryWrites=true&ssl=false"
-)  # Replace with your MongoDB URL
-db = client["vichaar_manthan_sih_db"]  # Replace with your database name
-collection = db["users"]  # Replace with your collection name
+ResumeConsumer = KafkaConsumer("resume-upload", bootstrap_servers = os.getenv("KAFKA_BROKER"))
+FeedbackConsumer = KafkaConsumer("feedback-request", bootstrap_servers = os.getenv("KAFKA_BROKER"))
 
 
-def kafkamessage1(consumer1):
-    for message in consumer1:
+client = MongoClient(os.getenv("DB_URI"))
+collection = client["vichaar_manthan_sih_db"]["users"]
+
+
+def kafkamessage1(ResumeConsumer):
+    for message in ResumeConsumer:
         print(message.value)
         data = json.loads(message.value.decode("utf-8"))
         email = data["email"]
@@ -30,7 +29,7 @@ def kafkamessage1(consumer1):
         return email, role, interview_id
 
 
-email, role, interview_id = kafkamessage1(consumer1)
+email, role, interview_id = kafkamessage1(ResumeConsumer)
 print(email, role, interview_id)
 
 
@@ -178,7 +177,7 @@ def insert_question_by_email_role_id(email, role, interview_id, new_question):
     return "Matching interview not found"
 
 
-if __name__ == "__main__":
+def main():
 
     # Example usage:
     # Get the latest resumeData
@@ -189,7 +188,7 @@ if __name__ == "__main__":
     print(resume_text)
 
     # Initialize Google PaLM API
-    palm.configure(api_key="AIzaSyCPrpgcWcMQsZ0wKrZDjb_qS05meNR-1Ig")
+    palm.configure(api_key = os.getenv("GOOGLE_API_KEY"))
 
     questions_and_exanswers = generate_questions_and_answers(resume_text)
     print(questions_and_exanswers)
@@ -210,3 +209,6 @@ if __name__ == "__main__":
     score = calculate_similarity_score(given_answers, exans)
     print(f"Similarity Score out of 5: {score:.2f}")
 
+
+if __name__ == "__main__":
+    main()
