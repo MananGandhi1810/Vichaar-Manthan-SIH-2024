@@ -14,31 +14,29 @@ services:
             - mongo
             - kafka
 
-    py-service:
-        build: ./py-service
-        restart: unless-stopped
-        volumes:
-            - ./py-service/.env:/usr/src/app/.env
-        depends_on:
-            - mongo
-            - kafka
-
     frontend:
         build: ./frontend
         restart: unless-stopped
         ports:
-            - 80:80/tcp
+            - 80:3000/tcp
         depends_on:
             - express
+
+    py-service:
+        build: ./py-service
+        restart: unless-stopped
+        depends_on:
+            - mongo
+            - kafka
 
     mongo:
         image: mongo:jammy
         restart: unless-stopped
         environment:
             MONGO_INITDB_ROOT_USERNAME: mongo-admin
-            MONGO_INITDB_ROOT_PASSWORD: <Generate a strong password>
+            MONGO_INITDB_ROOT_PASSWORD: <password>
             SIH_ADMIN_USERNAME: sih-admin
-            SIH_ADMIN_PASSWORD: <Generate a strong password>
+            SIH_ADMIN_PASSWORD: <password>
             MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
         ports:
             - 2605:27017/tcp
@@ -49,7 +47,7 @@ services:
     zookeeper:
         image: wurstmeister/zookeeper:latest
         ports:
-            - "2181:2181"
+            - 2181:2181/tcp
 
     kafka:
         image: wurstmeister/kafka:latest
