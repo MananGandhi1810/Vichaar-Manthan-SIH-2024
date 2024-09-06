@@ -25,7 +25,7 @@ function InterviewPage() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [interviewFinished, setInterviewFinished] = useState(false);
-  const [loading, setLoading] = useState(true); // State to handle loading status
+  const [loading, setLoading] = useState(true);
 
   const userData = JSON.parse(sessionStorage.getItem("userData"));
   const authToken = sessionStorage.getItem("authToken");
@@ -58,8 +58,7 @@ function InterviewPage() {
       }
     };
 
-    fetchQuestions();
-    const intervalId = setInterval(fetchQuestions, 10000); 
+    const intervalId = setInterval(fetchQuestions, 10000);
     return () => clearInterval(intervalId);
   }, [selectedRole, id]);
 
@@ -90,28 +89,41 @@ function InterviewPage() {
   };
 
   const handleNextQuestion = async () => {
-    const newIndex = (questionIndex + 1) % questions.length;
-    setQuestionIndex(newIndex);
+    const currentAnswer = results.map((result) => result.transcript).join(" ");
+    const newIndex = questionIndex + 1;
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/next-question`,
+      // Send the current answer to the API
+      await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/user/${selectedRole}/${id}/${questionIndex}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
           },
-          body: JSON.stringify({ currentQuestionIndex: newIndex, role, id }),
+          body: JSON.stringify({ answer: currentAnswer }),
         }
       );
-      const data = await response.json();
-      setQuestion(data.question);
-    } catch (error) {
-      console.error("Failed to fetch the next question:", error);
-    }
 
-    stopSpeechToText();
-    startSpeechToText();
+      // If there are more questions, load the next question
+      if (newIndex < questions.length) {
+        setQuestionIndex(newIndex);
+        setQuestion(questions[newIndex]);
+
+        // Clear the results for the new question
+        stopSpeechToText();
+        startSpeechToText();
+      } else {
+        // If it's the last question, end the interview
+        handleEndInterview();
+      }
+    } catch (error) {
+      console.error(
+        "Failed to submit the answer or fetch the next question:",
+        error
+      );
+    }
   };
 
   const handleEndInterview = () => {
@@ -153,7 +165,7 @@ function InterviewPage() {
         </div>
       </header>
       <main className="flex flex-row justify-center mt-6 w-full max-w-4xl px-4">
-        {loading ? ( // Show loading text while fetching questions
+        {loading ? (
           <div className="text-center">
             <p>Processing questions, please wait...</p>
           </div>
