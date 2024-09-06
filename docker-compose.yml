@@ -29,9 +29,9 @@ services:
         restart: unless-stopped
         environment:
             MONGO_INITDB_ROOT_USERNAME: mongo-admin
-            MONGO_INITDB_ROOT_PASSWORD: <Generate a strong password>
+            MONGO_INITDB_ROOT_PASSWORD: <password>
             SIH_ADMIN_USERNAME: sih-admin
-            SIH_ADMIN_PASSWORD: <Generate a strong password>
+            SIH_ADMIN_PASSWORD: <password>
             MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
         ports:
             - 27017:27017/tcp
