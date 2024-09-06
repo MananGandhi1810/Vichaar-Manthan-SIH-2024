@@ -13,8 +13,7 @@ WORKDIR /app
 RUN apk add libpq
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
-COPY . /app
+COPY . .
 ENV PYTHONUNBUFFERED=1
 ENV DONTWRITEBYTECODE=1
-EXPOSE 8000
-CMD ["python3", "main.py"]
+CMD ["python", "main.py"]

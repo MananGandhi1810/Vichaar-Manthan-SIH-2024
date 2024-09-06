@@ -24,13 +24,6 @@ services:
         depends_on:
             - express
 
-    py-service:
-        build: ./py-service
-        restart: unless-stopped
-        depends_on:
-            - mongo
-            - kafka
-
     mongo:
         image: mongo:jammy
         restart: unless-stopped
@@ -41,7 +34,7 @@ services:
             SIH_ADMIN_PASSWORD: <password>
             MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
         ports:
-            - 2605:27017/tcp
+            - 27017:27017/tcp
         volumes:
             - db-data:/data/db
             - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
