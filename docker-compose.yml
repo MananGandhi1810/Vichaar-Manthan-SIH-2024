@@ -1,11 +1,11 @@
 services:
     express:
-        build: ./backend
+        build: ./express
         restart: unless-stopped
         ports:
             - 3000:3000/tcp
         volumes:
-            - ./backend/.env:/usr/src/app/.env
+            - ./.env:/usr/src/app/.env
             # - /path/to/ssl/fullchain.pem:/usr/src/app/ssl/fullchain.pem
             # - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
         environment:
@@ -14,13 +14,13 @@ services:
             - mongo
             - kafka
 
-    frontend:
-        build: ./frontend
+    nextjs:
+        build: ./nextjs
         restart: unless-stopped
         ports:
             - 80:3000/tcp
         volumes:
-            - ./frontend/.env:/usr/src/app/.env
+            - ./.env:/usr/src/app/.env
         depends_on:
             - express
 
