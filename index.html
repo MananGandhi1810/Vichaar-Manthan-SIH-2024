@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload PDF Form</title>
+</head>
+<body>
+
+  <h2>Upload Your Resume</h2>
+
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" id="pdfFile" name="resume" accept=".pdf" required>
+
+    <label for="roleSelect">Select Role:</label>
+    <select id="roleSelect" name="role">
+      <option value="applicant">Applicant</option>
+      <option value="recruiter">Recruiter</option>
+      <option value="administrator">Administrator</option>
+      </select>
+
+    <button type="submit">Upload</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const roleSelect = document.getElementById('roleSelect');
+
+    form.addEventListener('submit', (event) => {+
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const selectedRole = roleSelect.value;
+
+      const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiQWRpdGggUmFtYWtyaXNobmEiLCJlbWFpbCI6Iml0c3NwaXJheEBnbWFpbC5jb20iLCJwaG9uZU51bSI6Ijg0NTQ4Mjc0MDciLCJpYXQiOjE3MjU1NTI0NTB9.uefGGZQmm-7YWaeYOpW_z6yZN8ybR7pR3Qv1MCvjLG8'; // Or retrieve it from local storage, etc.
+
+      fetch(`https://adithvm.centralindia.cloudapp.azure.com/user/resume/${selectedRole}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'Authorization': `Bearer ${authToken}` 
+        }
+    })
+      .then(response => {
+        if (response.ok) {
+          alert('PDF uploaded successfully!');
+        } else {
+          alert('Error uploading PDF. Please try again.');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again later.');
+      });
+    });
+  </script>
+
+</body>
+</html>

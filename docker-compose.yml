@@ -1,11 +1,11 @@
 services:
     express:
-        build: .
+        build: ./backend
         restart: unless-stopped
         ports:
             - 3000:3000/tcp
         volumes:
-            - ./.env:/usr/src/app/.env
+            - ./backend/.env:/usr/src/app/.env
             # - /path/to/ssl/fullchain.pem:/usr/src/app/ssl/fullchain.pem
             # - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
         environment:
@@ -13,6 +13,23 @@ services:
         depends_on:
             - mongo
             - kafka
+
+    py-service:
+        build: ./py-service
+        restart: unless-stopped
+        volumes:
+            - ./py-service/.env:/usr/src/app/.env
+        depends_on:
+            - mongo
+            - kafka
+
+    frontend:
+        build: ./frontend
+        restart: unless-stopped
+        ports:
+            - 80:80/tcp
+        depends_on:
+            - express
 
     mongo:
         image: mongo:jammy
