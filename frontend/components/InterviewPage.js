@@ -103,7 +103,7 @@ function InterviewPage() {
         try {
             // Send the current answer to the API
             await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/user/${selectedRole}/${id}/${questionIndex}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/user/questions/${selectedRole}/${id}/${questionIndex}`,
                 {
                     method: "POST",
                     headers: {

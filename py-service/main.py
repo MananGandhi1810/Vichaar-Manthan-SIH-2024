@@ -209,3 +209,4 @@ if __name__ == "__main__":
     # Calculate similarity score out of 5
     score = calculate_similarity_score(given_answers, exans)
     print(f"Similarity Score out of 5: {score:.2f}")
+
