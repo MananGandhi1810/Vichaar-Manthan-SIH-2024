@@ -1,6 +1,6 @@
 services:
     express:
-        image: spirax/vichaar-manthan-sih:latest
+        build: .
         restart: unless-stopped
         ports:
             - 3000:3000/tcp
