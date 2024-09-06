@@ -26,13 +26,26 @@ function InterviewPage() {
   const [questions, setQuestions] = useState([]);
   const [interviewFinished, setInterviewFinished] = useState(false);
 
+  // Fetch userData from sessionStorage
+  const userData = JSON.parse(sessionStorage.getItem("userData"));
+  const authToken = sessionStorage.getItem("authToken");
+  const { selectedRole, id } = userData || {}; // Destructure role and id from userData
+
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}//questions`
+          `${process.env.NEXT_PUBLIC_API_URL}/user/questions/${selectedRole}/${id}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
         );
         const data = await response.json();
+        console.log(data);
         setQuestions(data.questions);
         setQuestion(data.questions[0]);
       } catch (error) {
@@ -41,24 +54,24 @@ function InterviewPage() {
     };
 
     fetchQuestions();
-  }, []);
+  }, [selectedRole, id]);
 
   useEffect(() => {
-    document.addEventListener("contextmenu", (e) => e.preventDefault());
-    window.addEventListener("beforeunload", (e) => {
-      e.preventDefault();
-      e.returnValue = "";
-    });
+    // document.addEventListener("contextmenu", (e) => e.preventDefault());
+    // window.addEventListener("beforeunload", (e) => {
+    //   e.preventDefault();
+    //   e.returnValue = "";
+    // });
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    return () => {
-      document.removeEventListener("contextmenu", (e) => e.preventDefault());
-      window.removeEventListener("beforeunload", (e) => {
-        e.preventDefault();
-        e.returnValue = "";
-      });
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+    // return () => {
+    //   document.removeEventListener("contextmenu", (e) => e.preventDefault());
+    //   window.removeEventListener("beforeunload", (e) => {
+    //     e.preventDefault();
+    //     e.returnValue = "";
+    //   });
+    //   document.removeEventListener("visibilitychange", handleVisibilityChange);
+    // };
   }, []);
 
   const handleVisibilityChange = () => {
@@ -81,7 +94,7 @@ function InterviewPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ currentQuestionIndex: newIndex }),
+          body: JSON.stringify({ currentQuestionIndex: newIndex, role, id }), // Include role and ID
         }
       );
       const data = await response.json();

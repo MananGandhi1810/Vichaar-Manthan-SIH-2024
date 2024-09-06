@@ -71,7 +71,7 @@ export default function Page() {
           "userData",
           JSON.stringify({ selectedRole: selectedRole, id: data.data.resumeId })
         );
-        // router.push("/interview");
+        router.push("/interview");
       } else {
         setUploadStatus(response.message);
       }
