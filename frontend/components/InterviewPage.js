@@ -25,11 +25,11 @@ function InterviewPage() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [interviewFinished, setInterviewFinished] = useState(false);
+  const [loading, setLoading] = useState(true); // State to handle loading status
 
-  // Fetch userData from sessionStorage
   const userData = JSON.parse(sessionStorage.getItem("userData"));
   const authToken = sessionStorage.getItem("authToken");
-  const { selectedRole, id } = userData || {}; // Destructure role and id from userData
+  const { selectedRole, id } = userData || {};
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -44,34 +44,41 @@ function InterviewPage() {
             },
           }
         );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch questions");
+        }
+
         const data = await response.json();
-        console.log(data);
         setQuestions(data.questions);
         setQuestion(data.questions[0]);
+        setLoading(false);
       } catch (error) {
         console.error("Failed to fetch questions:", error);
       }
     };
 
     fetchQuestions();
+    const intervalId = setInterval(fetchQuestions, 10000); 
+    return () => clearInterval(intervalId);
   }, [selectedRole, id]);
 
   useEffect(() => {
-    // document.addEventListener("contextmenu", (e) => e.preventDefault());
-    // window.addEventListener("beforeunload", (e) => {
-    //   e.preventDefault();
-    //   e.returnValue = "";
-    // });
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+    window.addEventListener("beforeunload", (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    });
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // return () => {
-    //   document.removeEventListener("contextmenu", (e) => e.preventDefault());
-    //   window.removeEventListener("beforeunload", (e) => {
-    //     e.preventDefault();
-    //     e.returnValue = "";
-    //   });
-    //   document.removeEventListener("visibilitychange", handleVisibilityChange);
-    // };
+    return () => {
+      document.removeEventListener("contextmenu", (e) => e.preventDefault());
+      window.removeEventListener("beforeunload", (e) => {
+        e.preventDefault();
+        e.returnValue = "";
+      });
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const handleVisibilityChange = () => {
@@ -94,7 +101,7 @@ function InterviewPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ currentQuestionIndex: newIndex, role, id }), // Include role and ID
+          body: JSON.stringify({ currentQuestionIndex: newIndex, role, id }),
         }
       );
       const data = await response.json();
@@ -146,54 +153,62 @@ function InterviewPage() {
         </div>
       </header>
       <main className="flex flex-row justify-center mt-6 w-full max-w-4xl px-4">
-        <div className="flex flex-col items-start bg-blue-100 p-6 rounded-lg shadow-md w-1/3">
-          <div className="bg-white p-4 rounded shadow-sm mb-4">
-            <h2 className="text-lg font-semibold">{question}</h2>
+        {loading ? ( // Show loading text while fetching questions
+          <div className="text-center">
+            <p>Processing questions, please wait...</p>
           </div>
-          <div className="bg-white p-4 rounded shadow-sm w-full flex-grow overflow-auto">
-            <h3 className="text-lg font-semibold mb-2">Your Answers:</h3>
-            <ul className="list-disc pl-5">
-              {results.map((result) => (
-                <li key={result.timestamp} className="mb-1">
-                  {result.transcript}
-                </li>
-              ))}
-              {interimResult && <li className="italic">{interimResult}</li>}
-            </ul>
-          </div>
-        </div>
-        <div className="flex flex-col items-center ml-6 w-2/3">
-          <Webcam
-            audio={false}
-            screenshotFormat="image/jpeg"
-            width={620}
-            height={400}
-            className="border border-gray-300 shadow-md rounded-md"
-          />
-          <div className="mt-4 flex gap-4">
-            <Button
-              onClick={isRecording ? stopSpeechToText : startSpeechToText}
-              disabled={interviewFinished}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              {isRecording ? "Stop Recording" : "Start Recording"}
-            </Button>
-            <Button
-              onClick={handleNextQuestion}
-              disabled={interviewFinished}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              Next
-            </Button>
-            <Button
-              onClick={handleEndInterview}
-              disabled={interviewFinished}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              End
-            </Button>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="flex flex-col items-start bg-blue-100 p-6 rounded-lg shadow-md w-1/3">
+              <div className="bg-white p-4 rounded shadow-sm mb-4">
+                <h2 className="text-lg font-semibold">{question}</h2>
+              </div>
+              <div className="bg-white p-4 rounded shadow-sm w-full flex-grow overflow-auto">
+                <h3 className="text-lg font-semibold mb-2">Your Answers:</h3>
+                <ul className="list-disc pl-5">
+                  {results.map((result) => (
+                    <li key={result.timestamp} className="mb-1">
+                      {result.transcript}
+                    </li>
+                  ))}
+                  {interimResult && <li className="italic">{interimResult}</li>}
+                </ul>
+              </div>
+            </div>
+            <div className="flex flex-col items-center ml-6 w-2/3">
+              <Webcam
+                audio={false}
+                screenshotFormat="image/jpeg"
+                width={620}
+                height={400}
+                className="border border-gray-300 shadow-md rounded-md"
+              />
+              <div className="mt-4 flex gap-4">
+                <Button
+                  onClick={isRecording ? stopSpeechToText : startSpeechToText}
+                  disabled={interviewFinished}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  {isRecording ? "Stop Recording" : "Start Recording"}
+                </Button>
+                <Button
+                  onClick={handleNextQuestion}
+                  disabled={interviewFinished}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Next
+                </Button>
+                <Button
+                  onClick={handleEndInterview}
+                  disabled={interviewFinished}
+                  className="bg-red-600 text-white hover:bg-red-700"
+                >
+                  End
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
