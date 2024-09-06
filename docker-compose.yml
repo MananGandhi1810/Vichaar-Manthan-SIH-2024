@@ -5,7 +5,7 @@ services:
         ports:
             - 3000:3000/tcp
         volumes:
-            - ./.env:/usr/src/app/.env
+            - ./backend/.env:/usr/src/app/.env
             # - /path/to/ssl/fullchain.pem:/usr/src/app/ssl/fullchain.pem
             # - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
         environment:
@@ -14,17 +14,27 @@ services:
             - mongo
             - kafka
 
+    frontend:
+        build: ./frontend
+        restart: unless-stopped
+        ports:
+            - 80:3000/tcp
+        volumes:
+            - ./frontend/.env:/usr/src/app/.env
+        depends_on:
+            - express
+
     mongo:
         image: mongo:jammy
         restart: unless-stopped
         environment:
             MONGO_INITDB_ROOT_USERNAME: mongo-admin
-            MONGO_INITDB_ROOT_PASSWORD: Naitik@123
+            MONGO_INITDB_ROOT_PASSWORD: <Generate a strong password>
             SIH_ADMIN_USERNAME: sih-admin
-            SIH_ADMIN_PASSWORD: Naitik@123
+            SIH_ADMIN_PASSWORD: <Generate a strong password>
             MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
         ports:
-            - 2605:27017/tcp
+            - 27017:27017/tcp
         volumes:
             - db-data:/data/db
             - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
@@ -32,7 +42,7 @@ services:
     zookeeper:
         image: wurstmeister/zookeeper:latest
         ports:
-            - "2181:2181"
+            - 2181:2181/tcp
 
     kafka:
         image: wurstmeister/kafka:latest
@@ -47,7 +57,7 @@ services:
             KAFKA_LISTENERS: INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
             KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
             KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-            KAFKA_CREATE_TOPICS: "resume-upload:1:1"
+            KAFKA_CREATE_TOPICS: "resume-upload:1:1,feedback-request:1:1"
         depends_on:
             - zookeeper
 
