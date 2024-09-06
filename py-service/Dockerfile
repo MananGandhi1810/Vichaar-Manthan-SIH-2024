@@ -17,4 +17,4 @@ COPY . /app
 ENV PYTHONUNBUFFERED=1
 ENV DONTWRITEBYTECODE=1
 EXPOSE 8000
-CMD ["sh", "python main.py"]
+CMD ["python3", "main.py"]
