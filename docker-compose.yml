@@ -54,7 +54,7 @@ services:
             - 2181:2181/tcp
 
     kafka:
-        image: apache/kafka:latest
+        image: wurstmeister/kafka:latest
         restart: unless-stopped
         ports:
             - 9092:9092/tcp
@@ -69,6 +69,9 @@ services:
             KAFKA_CREATE_TOPICS: "resume-upload:1:1,feedback-request:1:1"
         depends_on:
             - zookeeper
+        volumes:
+            - kafka-data:/var/lib/kafka/data
 
 volumes:
     db-data:
+    kafka-data:
