@@ -4,7 +4,6 @@ import os
 import re
 import tempfile
 import warnings
-import time
 import signal
 
 import google.generativeai as palm
@@ -356,8 +355,6 @@ if __name__ == "__main__":
                                 continue
         except Exception as e:
             logging.error(f"Unexpected error in main loop: {e}")
-            time.sleep(5)
-            continue
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
