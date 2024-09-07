@@ -1,214 +1,254 @@
+import json
 import os
 import re
-import json
-from pymongo import MongoClient
-from kafka import KafkaConsumer
-import google.generativeai as palm
-from sentence_transformers import SentenceTransformer, util
-from langchain_community.document_loaders import PyPDFLoader
-from dotenv import load_dotenv
+import tempfile
+import warnings
 
+import google.generativeai as palm
+from dotenv import load_dotenv
+from kafka import KafkaConsumer
+from langchain_community.document_loaders import PyPDFLoader
+from pymongo import MongoClient
+from sentence_transformers import SentenceTransformer, util
+
+warnings.filterwarnings("ignore") 
 load_dotenv()
 
-ResumeConsumer = KafkaConsumer("resume-upload", bootstrap_servers = os.getenv("KAFKA_BROKER"))
-FeedbackConsumer = KafkaConsumer("feedback-request", bootstrap_servers = os.getenv("KAFKA_BROKER"))
-
-
+consumer = KafkaConsumer(bootstrap_servers = os.getenv("KAFKA_BROKER"))
 client = MongoClient(os.getenv("DB_URI"))
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
 collection = client["vichaar_manthan_sih_db"]["users"]
 
 
-def kafkamessage1(ResumeConsumer):
-    for message in ResumeConsumer:
-        print(message.value)
+def processMessage(message):
+    """Retrieves email, role, and interview ID from a Kafka message."""
+
+    try:
         data = json.loads(message.value.decode("utf-8"))
-        email = data["email"]
-        role = data["role"]
-        interview_id = data["id"]
-
-        return email, role, interview_id
-
-
-email, role, interview_id = kafkamessage1(ResumeConsumer)
-print(email, role, interview_id)
-
+        return data["email"], data["role"], data["id"]
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Error processing Kafka message: {e}")
 
 def get_resume_data_by_email_role_id(email, role, interview_id):
-    print(collection)
+    """Retrieves resume data based on email, role, and interview ID."""
 
-    # Find the user by email
-    user = collection.find_one({"email": email})
-    print(user)
+    user = collection.find_one({"email": email}, {"interviews": 1}) 
 
     if user and "interviews" in user:
-        # Filter interviews by matching both role and id
-        for interview in user["interviews"]:
-            if interview["role"] == role and interview["id"] == interview_id:
-                resume_data = interview.get("resumeData")
-                return resume_data
-    return None  # If no matching interview is found
+        matching_interview = next(
+            (
+                interview
+                for interview in user["interviews"]
+                if interview["role"] == role and interview["id"] == interview_id
+            ),
+            None,
+        )
 
+        if matching_interview:
+            return matching_interview.get("resumeData")
 
-# Converting binary content to text from MongoDB
+    return None
+
+def get_answers_by_email_role_id(email, role, interview_id):
+    """Retrieves user answers based on email, role, and interview ID."""
+
+    user = collection.find_one({"email": email}, {"interviews": 1})
+
+    if user and "interviews" in user:
+        matching_interview = next(
+            (
+                interview
+                for interview in user["interviews"]
+                if interview["role"] == role and interview["id"] == interview_id
+            ),
+            None,
+        )
+
+        if matching_interview:
+            return matching_interview.get("questions")
+
+    return None
 
 
 def binary2text(resume_data):
-    with open("temp.pdf", "wb") as pdf_file:
-        pdf_file.write(resume_data)
+    """Converts binary PDF data to text."""
+    
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf_file:
+        temp_pdf_file.write(resume_data)
+        temp_pdf_path = temp_pdf_file.name
 
-    docLoader = PyPDFLoader("temp.pdf")
+    docLoader = PyPDFLoader(temp_pdf_path)
     document = docLoader.load()
-    document = document[0].page_content
-    return document
+    text_content = document[0].page_content
 
+    os.remove(temp_pdf_path)
 
-# Function to generate questions and expected answers using PaLM API
-def generate_questions_and_answers(resume_text):
+    return text_content
+
+def generate_questions_and_answers(resume_text, role):
+    """Generates technical interview questions and their expected answers based on a resume text."""
+
     prompt = f"""
     Based on the following resume text:
-    \n{resume_text}\n
-    Generate 5 technical interview questions and their expected answers in a fixed format like this:
+
+    {resume_text}
+
+    Generate 5 technical interview questions for the role of {role} and their expected answers in a fixed format like this:
 
     Questions:
-    1. First Question Here
-    2. Second Question Here
-    3. Third Question Here
-    4. Fourth Question Here
-    5. Fifth Question Here
+    1.
+    2.
+    3.
+    4.
+    5.
     
     Answers:
-    1. First Answer Here
-    2. Second Answer Here
-    3. Third Answer Here
-    4. Fourth Answer Here
-    5. Fifth Answer Here
+    1.
+    2.
+    3.
+    4.
+    5.
 
-    Note: Do not use any markdown or special characters which might violate the format
+    Note: Do not use any markdown or special characters.
     """
 
-    # Call PaLM API with the prompt
-    response = palm.generate_text(
-        prompt=prompt, model="models/text-bison-001", max_output_tokens=500
-    )
-
-    if response:
-        questions_and_exanswers = response.result
-        return questions_and_exanswers
-    else:
-        return "No response from the model"
+    try:
+        response = palm.GenerativeModel('gemini-1.0-pro-latest').generate_content(prompt)
+        return response.candidates[0].content.parts[0].text
+    except Exception as e:
+        return f"Error generating questions and answers: {e}" 
 
 
 def extract_questions_and_answers(text):
+    """Extracts questions and answers from text formatted with numbered questions and answers."""
 
-    # Split the input text into Questions and Answers parts
     try:
-        questions_part, answers_part = text.split("Answers:")
+        questions_part, answers_part = text.split("Answers:", 1)
     except ValueError:
-        raise ValueError(
-            "Input text must contain both 'Questions:' and 'Answers:' sections."
-        )
+        raise ValueError("Input text must contain both 'Questions:' and 'Answers:' sections.")
 
-    # Extract questions using regex
-    questions = re.findall(r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)", questions_part, re.DOTALL)
-    questions = [q.strip() for q in questions]  # Clean up whitespace
+    pattern = r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)"
 
-    # Extract answers using regex
-    answers = re.findall(r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)", answers_part, re.DOTALL)
-    answers = [a.strip() for a in answers]  # Clean up whitespace
+    questions = re.findall(pattern, questions_part, re.DOTALL)
+    answers = re.findall(pattern, answers_part, re.DOTALL)
+
+    questions = [q.strip() for q in questions]
+    answers = [a.strip() for a in answers]
 
     return questions, answers
 
 
-# Load the pre-trained model for embedding sentences
-model = SentenceTransformer("all-MiniLM-L6-v2")
 
-
-# Function to calculate cosine similarity between two lists of answers
 def calculate_similarity_score(given_answers, expected_answers):
+    """Calculates the similarity score between given and expected answers using SentenceTransformer."""
+
     if len(given_answers) != len(expected_answers):
         raise ValueError("The number of given and expected answers must be the same.")
 
-    total_similarity = 0
-    num_questions = len(given_answers)
+    given_embeddings = model.encode(given_answers, convert_to_tensor=True)
+    expected_embeddings = model.encode(expected_answers, convert_to_tensor=True)
 
-    # Loop through each pair of answers
-    for i in range(num_questions):
-        given_embedding = model.encode(given_answers[i], convert_to_tensor=True)
-        expected_embedding = model.encode(expected_answers[i], convert_to_tensor=True)
+    similarities = util.cos_sim(given_embeddings, expected_embeddings)
+    total_similarity = similarities.diagonal().sum().item()
 
-        # Compute cosine similarity
-        similarity = util.cos_sim(given_embedding, expected_embedding).item()
-        total_similarity += similarity
-
-    # Calculate the average similarity score
-    average_similarity = total_similarity / num_questions
-
-    # Scale the score to be out of 5
-    score_out_of_five = average_similarity * 5
-
-    return score_out_of_five
+    return (total_similarity / len(given_answers)) * 5
 
 
 def send_to_mongo(email, role, interview_id, ques, exans):
-    print(exans)
-    for i in range(0, len(exans)):
-        insert_question_by_email_role_id(
+    """Inserts questions and expected answers into MongoDB."""
+
+    for question, expected_answer in zip(ques, exans):
+        update = insert_question_by_email_role_id(
             email,
             role,
             interview_id,
-            {"question": ques[i], "userAnswer": "", "expectedAnswer": exans[i]},
-        )
+            {"question": question, "userAnswer": "", "expectedAnswer": expected_answer},
+        ) 
+        if update == False:
+            print("Error inserting question into MongoDB")
+            return False
 
 
 def insert_question_by_email_role_id(email, role, interview_id, new_question):
-    # Find the specific user and interview
     user = collection.find_one({"email": email})
 
     if user and "interviews" in user:
         for i, interview in enumerate(user["interviews"]):
             if interview["role"] == role and interview["id"] == interview_id:
-                # Update the 'questions' field by appending the new question
                 collection.update_one(
                     {"email": email, f"interviews.{i}.id": interview_id},
-                    {"$push": {f"interviews.{i}.questions": new_question}},
+                    {
+                        "$push": {f"interviews.{i}.questions": new_question},
+                        "$set": {f"interviews.{i}.isResumeProcessed": True},
+                    },
                 )
-                return "Question inserted successfully"
-
-    return "Matching interview not found"
+                return True
+    return False
 
 
 def main():
+    print("Main Process Started")
 
-    # Example usage:
-    # Get the latest resumeData
-    resume_data = get_resume_data_by_email_role_id(email, role, interview_id)
-    print(resume_data)
-
-    resume_text = binary2text(resume_data)
-    print(resume_text)
-
-    # Initialize Google PaLM API
     palm.configure(api_key = os.getenv("GOOGLE_API_KEY"))
+    print("Google API key configured")
 
-    questions_and_exanswers = generate_questions_and_answers(resume_text)
-    print(questions_and_exanswers)
+    consumer.subscribe(topics = ['resume-upload', 'feedback-request'])
+    print("Subscribed to topics: " + str(consumer.subscription()))
+    
 
-    ques, exans = extract_questions_and_answers(questions_and_exanswers)
-    print(ques, exans)
-    send_to_mongo(email, role, interview_id, ques, exans)
+    while True:
+        message = consumer.poll(timeout_ms=100)
+        if message is not None:
+            for topic_partition, messages in message.items():
+                if topic_partition.topic == 'resume-upload':
+                    for message in messages:
+                        email, role, interview_id = processMessage(message)
+                        if email and role and interview_id:
+                            print("Processing resume for: " + email + ", " + role + ", " + str(interview_id))
 
-    # Example usage
-    given_answers = [
-        "Supervised learning involves labeled data, while unsupervised learning uses unlabeled data.",
-        "Feature engineering transforms raw data into useful features, including creating new features and removing outliers.",
-        "Common machine learning models include decision trees, random forests, and neural networks.",
-        "Diferent types of models include CNNs, RNNs and RL",
-        "Models can be deployed via web services, mobile apps, or desktop applications.",
-    ]
-    # Calculate similarity score out of 5
-    score = calculate_similarity_score(given_answers, exans)
-    print(f"Similarity Score out of 5: {score:.2f}")
+                            resume_data = get_resume_data_by_email_role_id(email, role, interview_id)
+                            if not resume_data:
+                                print("Resume data not found")
+                                continue
 
+                            resume_text = binary2text(resume_data)
+
+                            questions_and_exanswers = generate_questions_and_answers(resume_text, role)
+
+                            if questions_and_exanswers is None:
+                                print("Error generating questions and answers")
+                                continue
+
+                            ques, exans = extract_questions_and_answers(questions_and_exanswers)
+
+                            if send_to_mongo(email, role, interview_id, ques, exans) == False:
+                                print("Error sending data to MongoDB")
+                                continue
+
+                            print("Finished processing resume")
+
+                elif topic_partition.topic == 'feedback-request':
+                    for message in messages:
+                        email, role, interview_id = processMessage(message)
+                        if email and role and interview_id:
+                            print("Processing feedback request for: " + email + ", " + role + ", " + str(interview_id))
+
+                            user_answers = get_answers_by_email_role_id(email, role, interview_id)
+                            print(user_answers)
+
+                            expected_answers = [
+                                question["expectedAnswer"] for question in user_answers["questions"]
+                            ]
+
+                            given_answers = [question["userAnswer"] for question in user_answers["questions"]]
+
+                            print(expected_answers, given_answers)
+
+                            similarity_score = calculate_similarity_score(given_answers, expected_answers)
+
+                            print(similarity_score)
+                            print("Finished processing feedback request")
 
 if __name__ == "__main__":
     main()
