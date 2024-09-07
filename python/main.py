@@ -1,8 +1,10 @@
 import json
+import logging
 import os
 import re
 import tempfile
 import warnings
+import time
 
 import google.generativeai as palm
 from dotenv import load_dotenv
@@ -14,10 +16,16 @@ from sentence_transformers import SentenceTransformer, util
 
 load_dotenv()
 warnings.filterwarnings("ignore")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s - %(message)s",
+)
+logging.getLogger("kafka").setLevel(logging.WARNING)
 
-consumer = KafkaConsumer(bootstrap_servers=os.getenv("KAFKA_BROKER"))
+
+consumer = KafkaConsumer(bootstrap_servers=os.getenv("KAFKA_BROKER"), api_version=(2, 6, 0), group_id="vichaar-manthan-sih", auto_offset_reset="earliest")
 client = MongoClient(os.getenv("DB_URI"))
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer(os.getenv("SBERT_MODEL"))
 
 
 def processMessage(message):
@@ -25,36 +33,59 @@ def processMessage(message):
 
     try:
         data = json.loads(message.value.decode("utf-8"))
-        return str(data["email"]), str(data["role"]), int(data["id"])
+        logging.debug(f"Processing Kafka message with data: {data}")
+        email, role, interview_id = (
+            str(data["email"]),
+            str(data["role"]),
+            int(data["id"]),
+        )
+        logging.debug(f"Extracted: email={email}, role={role}, interview_id={interview_id}")
+        return email, role, interview_id
     except (json.JSONDecodeError, KeyError) as e:
-        print(f"Error processing Kafka message: {e}")
+        logging.error(f"Error processing Kafka message: {e}, message content: {message.value}")
 
 
-def getResume(email, interview_id):
+def fetchResume(email, interview_id):
     """Retrieves resume data based on email and interview ID."""
 
-    user = collection.find_one(
-        {"email": email}, {"interviews": {"$elemMatch": {"id": interview_id}}}
-    )
+    logging.info(f"Fetching resume for email={email}, interview_id={interview_id}")
 
-    if user and "interviews" in user and user["interviews"]:
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf_file:
-            temp_pdf_file.write(user["interviews"][0].get("resumeData"))
-            temp_pdf_path = temp_pdf_file.name
+    try:
+        user = collection.find_one(
+            {"email": email},
+            {"interviews": {"$elemMatch": {"id": interview_id}}},
+        )
 
-        docLoader = PyPDFLoader(temp_pdf_path)
-        document = docLoader.load()
-        text_content = document[0].page_content
+        if user and "interviews" in user and user["interviews"]:
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf_file:
+                    temp_pdf_file.write(user["interviews"][0].get("resumeData"))
+                    temp_pdf_path = temp_pdf_file.name
 
-        os.remove(temp_pdf_path)
+                docLoader = PyPDFLoader(temp_pdf_path)
+                document = docLoader.load()
+                text_content = document[0].page_content
 
-        return text_content
+            finally:
+                if temp_pdf_path:
+                    os.remove(temp_pdf_path)
 
-    return None
+            logging.info(f"Resume fetched successfully for email={email}")
+            return text_content
+
+        else:
+            logging.warning(f"Resume not found for email={email}, interview_id={interview_id}")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error fetching resume: {e}, email={email}, interview_id={interview_id}")
+        return None
 
 
 def generateQuestions(resume_text, role):
     """Generates technical interview questions and their expected answers based on a resume text."""
+
+    logging.info(f"Generating questions for role={role}")
 
     prompt = f"""
     Based on the following resume text:
@@ -81,70 +112,94 @@ def generateQuestions(resume_text, role):
     """
 
     try:
-        response = palm.GenerativeModel("gemini-1.0-pro-latest").generate_content(
-            prompt
-        )
+        response = palm.GenerativeModel(os.getenv("GEMINI_MODEL")).generate_content(prompt)
+        content = response.candidates[0].content.parts[0].text
 
-        questions_part, answers_part = (
-            response.candidates[0].content.parts[0].text.split("Answers:", 1)
-        )
+        logging.debug(f"Generated content: {content}")
 
-        pattern = r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)"
+        questions_part, answers_part = content.split("Answers:", 1)
+        question_pattern = r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)"
+        answer_pattern = r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)"
 
-        questions = re.findall(pattern, questions_part, re.DOTALL)
-        answers = re.findall(pattern, answers_part, re.DOTALL)
+        questions = re.findall(question_pattern, questions_part, re.DOTALL)
+        answers = re.findall(answer_pattern, answers_part, re.DOTALL)
 
-        questions = [q.strip() for q in questions]
-        answers = [a.strip() for a in answers]
+        logging.info(f"Generated {len(questions)} questions successfully")
+        return [q.strip() for q in questions], [a.strip() for a in answers]
 
-        return questions, answers
     except Exception as e:
-        return f"Error generating questions and answers: {e}", None
+        logging.error(f"Error generating questions: {e}, role={role}")
+        return None, None
 
 
-def sendQuestions(email, interview_id, ques, exans):
+def sendQuestions(email, interview_id, questions, expected_answers):
     """Inserts questions and expected answers into MongoDB."""
 
-    user = collection.find_one({"email": email})
+    logging.info(f"Sending {len(questions)} questions to MongoDB for email={email}, interview_id={interview_id}")
 
-    if user and "interviews" in user:
-        for i, interview in enumerate(user["interviews"]):
-            if interview["id"] == interview_id:
-                for question, expected_answer in zip(ques, exans):
-                    new_question = {
-                        "question": question,
-                        "userAnswer": "",
-                        "expectedAnswer": expected_answer,
-                    }
-                    collection.update_one(
-                        {"email": email, f"interviews.{i}.id": interview_id},
-                        {
-                            "$push": {f"interviews.{i}.questions": new_question},
-                            "$set": {f"interviews.{i}.isResumeProcessed": True},
-                        },
-                    )
-                return True
-    return False
+    new_questions = [
+        {
+            "question": question,
+            "userAnswer": "",
+            "expectedAnswer": expected_answer,
+        }
+        for question, expected_answer in zip(questions, expected_answers)
+    ]
+
+    try:
+        result = collection.update_one(
+            {"email": email, "interviews.id": interview_id},
+            {
+                "$push": {"interviews.$.questions": {"$each": new_questions}},
+                "$set": {"interviews.$.isResumeProcessed": True},
+            },
+        )
+
+        if result.modified_count > 0:
+            logging.info(f"Questions sent to MongoDB successfully for email={email}")
+            return True
+        else:
+            logging.warning(f"No documents updated in MongoDB for email={email}, interview_id={interview_id}")
+            return False
+
+    except Exception as e:
+        logging.error(f"Error sending questions to MongoDB: {e}, email={email}, interview_id={interview_id}")
+        return False
 
 
-def getAnswers(email, interview_id):
+def fetchAnswers(email, interview_id):
     """Retrieves user answers based on email and interview ID."""
 
-    user = collection.find_one(
-        {"email": email}, {"interviews": {"$elemMatch": {"id": interview_id}}}
-    )
+    logging.info(f"Fetching answers for email={email}, interview_id={interview_id}")
 
-    if user and "interviews" in user and user["interviews"]:
-        return user["interviews"][0].get("questions")
+    try:
+        user = collection.find_one(
+            {"email": email},
+            {"interviews": {"$elemMatch": {"id": interview_id}}},
+        )
 
-    return None
+        if user and "interviews" in user and user["interviews"]:
+            answers = user["interviews"][0].get("questions")
+            logging.info(f"Fetched {len(answers)} answers successfully")
+            return answers
+
+        else:
+            logging.warning(f"No answers found for email={email}, interview_id={interview_id}")
+            return None
+
+    except Exception as e:
+        logging.error(f"Error fetching answers: {e}, email={email}, interview_id={interview_id}")
+        return None
 
 
 def calculateSimilarityScore(given_answers, expected_answers):
     """Calculates the similarity score between given and expected answers using SentenceTransformer."""
 
     if len(given_answers) != len(expected_answers):
+        logging.error("Mismatch in number of given and expected answers")
         raise ValueError("The number of given and expected answers must be the same.")
+
+    logging.debug(f"Calculating similarity score for {len(given_answers)} answers")
 
     given_embeddings = model.encode(given_answers, convert_to_tensor=True)
     expected_embeddings = model.encode(expected_answers, convert_to_tensor=True)
@@ -152,11 +207,15 @@ def calculateSimilarityScore(given_answers, expected_answers):
     similarities = util.cos_sim(given_embeddings, expected_embeddings)
     total_similarity = similarities.diagonal().sum().item()
 
-    return round((total_similarity / len(given_answers)) * 5, 2)
+    score = round((total_similarity / len(given_answers)) * 5, 2)
+    logging.debug(f"Calculated similarity score: {score}")
+    return score
 
 
 def generateFeedback(question, given_answers, expected_answers, role, similarity_score):
-    """Generates technical interview questions and their expected answers based on a resume text."""
+    """Generates feedback based on interview questions and answers."""
+
+    logging.info(f"Generating feedback for role={role}, similarity_score={similarity_score}")
 
     question = "\n".join(question)
     given_answers = "\n".join(given_answers)
@@ -183,122 +242,107 @@ def generateFeedback(question, given_answers, expected_answers, role, similarity
     """
 
     try:
-        response = palm.GenerativeModel("gemini-1.0-pro-latest").generate_content(
-            prompt
-        )
+        response = palm.GenerativeModel("gemini-1.0-pro-latest").generate_content(prompt)
+        feedback = response.candidates[0].content.parts[0].text
+        logging.debug(f"Generated feedback: {feedback}")
+        return feedback
 
-        return response.candidates[0].content.parts[0].text
     except Exception as e:
-        return f"Error generating feedback: {e}"
+        logging.error(f"Error generating feedback: {e}, role={role}")
+        return None
 
 
 def sendFeedback(email, interview_id, feedback, similarity_score):
     """Inserts feedback into MongoDB."""
 
-    user = collection.find_one({"email": email})
+    logging.info(f"Sending feedback to MongoDB for email={email}, interview_id={interview_id}")
 
-    if user and "interviews" in user:
-        for i, interview in enumerate(user["interviews"]):
-            if interview["id"] == interview_id:
-                collection.update_one(
-                    {"email": email, f"interviews.{i}.id": interview_id},
-                    {
-                        "$set": {
-                            f"interviews.{i}.feedback": feedback,
-                            f"interviews.{i}.rating": similarity_score,
-                        },
-                    },
-                )
-                return True
-    return False
+    try:
+        result = collection.update_one(
+            {"email": email, "interviews.id": interview_id},
+            {
+                "$set": {
+                    "interviews.$.feedback": feedback,
+                    "interviews.$.rating": similarity_score,
+                }
+            },
+        )
+
+        if result.modified_count > 0:
+            logging.info(f"Feedback sent to MongoDB successfully for email={email}")
+            return True
+        else:
+            logging.warning(f"No documents updated in MongoDB for email={email}, interview_id={interview_id}")
+            return False
+
+    except Exception as e:
+        logging.error(f"Error sending feedback to MongoDB: {e}, email={email}, interview_id={interview_id}")
+        return False
 
 
 if __name__ == "__main__":
-    print("Main Process Started")
+    logging.info("Main Process Started")
 
     collection = client["vichaar_manthan_sih_db"]["users"]
-    print("Connected to MongoDB")
+    logging.info("Connected to MongoDB")
 
-    palm.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-    print("Google API key configured")
+    palm.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    logging.info("Gemini API key configured")
 
     consumer.subscribe(topics=["resume-upload", "feedback-request"])
-    print("Subscribed to topics: " + str(consumer.subscription()))
 
     while True:
-        message = consumer.poll(timeout_ms=100)
-        if message is not None:
+        try:
+            message = consumer.poll(timeout_ms=100)
+            if message is None:
+                logging.debug("No new messages received within timeout")
+                continue
             for topic_partition, messages in message.items():
-                if topic_partition.topic == "resume-upload":
-                    for message in messages:
-                        email, role, interview_id = processMessage(message)
-                        if email and role and interview_id:
-                            print(
-                                "Log: Processing resume for: "
-                                + email
-                                + ", "
-                                + role
-                                + ", "
-                                + str(interview_id)
-                            )
-
-                            resume = getResume(email, interview_id)
-                            if not resume:
-                                print("Error: Resume not found")
-                                continue
-
-                            ques, exans = generateQuestions(resume, role)
-
-                            if not ques or not exans:
-                                print("Error: Questions not generated")
-                                continue
-
-                            if sendQuestions(email, interview_id, ques, exans) == False:
-                                print("Error: Questions not sent to MongoDB")
-                                continue
-
-                            print("Log: Completed processing resume for: " + email)
-
-                elif topic_partition.topic == "feedback-request":
-                    for message in messages:
-                        email, role, interview_id = processMessage(message)
-                        if email and role and interview_id:
-                            print(
-                                "Log: Feedback request for: "
-                                + email
-                                + ", "
-                                + role
-                                + ", "
-                                + str(interview_id)
-                            )
-
-                            answers = getAnswers(email, interview_id)
-
-                            if not answers:
-                                print("Error: Answers not found")
-                                continue
-
-                            questions = [q["question"] for q in answers]
-                            expected_answers = [q["expectedAnswer"] for q in answers]
-                            given_answers = [q["userAnswer"] for q in answers]
-
-                            similarity_score = calculateSimilarityScore(
-                                given_answers, expected_answers
-                            )
-                            user_feedback = generateFeedback(
-                                questions,
-                                given_answers,
-                                expected_answers,
-                                role,
-                                similarity_score,
-                            )
-
-                            if (
-                                sendFeedback(
-                                    email, interview_id, user_feedback, similarity_score
+                try:
+                    if topic_partition.topic == "resume-upload":
+                        for message in messages:
+                            email, role, interview_id = processMessage(message)
+                            if email and role and interview_id:
+                                resume = fetchResume(email, interview_id)
+                                if not resume:
+                                    continue
+                                questions, expected_answers = generateQuestions(resume, role)
+                                if not questions or not expected_answers:
+                                    continue
+                                if not sendQuestions(
+                                    email,
+                                    interview_id,
+                                    questions,
+                                    expected_answers,
+                                ):
+                                    continue
+                    elif topic_partition.topic == "feedback-request":
+                        for message in messages:
+                            email, role, interview_id = processMessage(message)
+                            if email and role and interview_id:
+                                answers = fetchAnswers(email, interview_id)
+                                if not answers:
+                                    continue
+                                questions = [q["question"] for q in answers]
+                                expected_answers = [q["expectedAnswer"] for q in answers]
+                                given_answers = [q["userAnswer"] for q in answers]
+                                similarity_score = calculateSimilarityScore(given_answers, expected_answers)
+                                user_feedback = generateFeedback(
+                                    questions,
+                                    given_answers,
+                                    expected_answers,
+                                    role,
+                                    similarity_score,
                                 )
-                                == False
-                            ):
-                                print("Error: Feedback not sent to MongoDB")
-                                continue
-                            print("Log: Completed feedback request for: " + email)
+                                if not sendFeedback(
+                                    email,
+                                    interview_id,
+                                    user_feedback,
+                                    similarity_score,
+                                ):
+                                    continue
+                except Exception as e:
+                    logging.error(f"Unexpected error in inner loop: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error in main loop: {e}")
+            time.sleep(5)

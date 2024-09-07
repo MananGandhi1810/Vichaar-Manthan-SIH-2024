@@ -52,8 +52,6 @@ services:
         image: zookeeper:latest
         ports:
             - 2181:2181/tcp
-        volumes:
-            - zookeeper-data:/data
 
     kafka:
         image: wurstmeister/kafka:latest
@@ -72,9 +70,8 @@ services:
         depends_on:
             - zookeeper
         volumes:
-            - kafka-data:/logs
+            - kafka-data:/kafka
 
 volumes:
     db-data:
-    zookeeper-data:
     kafka-data:
