@@ -1,8 +1,8 @@
 import { Router } from "express";
 import {
-    registerHandler,
-    loginHandler,
-    userDataHandler,
+  registerHandler,
+  loginHandler,
+  userDataHandler,
 } from "../handlers/auth.js";
 
 import { checkAuth } from "../middlewares/auth.js";
