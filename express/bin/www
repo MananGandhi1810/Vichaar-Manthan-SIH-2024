@@ -22,19 +22,19 @@ app.set("port", port);
 
 // Check if SSL certificates are present
 if (
-    fs.existsSync(`./ssl/privkey.pem`) ||
-    fs.existsSync(`./ssl/fullchain.pem`)
+  fs.existsSync(`./ssl/privkey.pem`) ||
+  fs.existsSync(`./ssl/fullchain.pem`)
 ) {
-    const options = {
-        key: fs.readFileSync(`./ssl/privkey.pem`),
-        cert: fs.readFileSync(`./ssl/fullchain.pem`),
-    };
+  const options = {
+    key: fs.readFileSync(`./ssl/privkey.pem`),
+    cert: fs.readFileSync(`./ssl/fullchain.pem`),
+  };
 
-    console.log("SSL certificates found. Running in HTTPS mode.");
-    var server = https.createServer(options, app);
+  console.log("SSL certificates found. Running in HTTPS mode.");
+  var server = https.createServer(options, app);
 } else {
-    console.log("No SSL certificates found. Running in HTTP mode.");
-    var server = http.createServer(app);
+  console.log("No SSL certificates found. Running in HTTP mode.");
+  var server = http.createServer(app);
 }
 
 /**
@@ -51,19 +51,19 @@ server.on("listening", onListening);
  */
 
 function normalizePort(val) {
-    var port = parseInt(val, 10);
+  var port = parseInt(val, 10);
 
-    if (isNaN(port)) {
-        // named pipe
-        return val;
-    }
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
 
-    if (port >= 0) {
-        // port number
-        return port;
-    }
+  if (port >= 0) {
+    // port number
+    return port;
+  }
 
-    return false;
+  return false;
 }
 
 /**
@@ -71,23 +71,23 @@ function normalizePort(val) {
  */
 
 function onError(error) {
-    if (error.syscall !== "listen") {
-        throw error;
-    }
+  if (error.syscall !== "listen") {
+    throw error;
+  }
 
-    var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
+  var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
 
-    // handle specific listen errors with friendly messages
-    switch (error.code) {
-        case "EACCES":
-            console.error(bind + " requires elevated privileges");
-            process.exit(1);
-        case "EADDRINUSE":
-            console.error(bind + " is already in use");
-            process.exit(1);
-        default:
-            throw error;
-    }
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case "EACCES":
+      console.error(bind + " requires elevated privileges");
+      process.exit(1);
+    case "EADDRINUSE":
+      console.error(bind + " is already in use");
+      process.exit(1);
+    default:
+      throw error;
+  }
 }
 
 /**
@@ -95,7 +95,7 @@ function onError(error) {
  */
 
 function onListening() {
-    var addr = server.address();
-    var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
-    debug("Listening on " + bind);
+  var addr = server.address();
+  var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
+  debug("Listening on " + bind);
 }
