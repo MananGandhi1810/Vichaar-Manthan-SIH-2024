@@ -5,6 +5,7 @@ import re
 import tempfile
 import warnings
 import time
+import signal
 
 import google.generativeai as palm
 from dotenv import load_dotenv
@@ -284,6 +285,15 @@ def sendFeedback(email, interview_id, feedback, similarity_score):
         return False
 
 
+def signal_handler(sig, frame):
+    """Handles SIGINT and SIGTERM signals to gracefully shut down the process."""
+
+    logging.info("Shutting down the main process")
+    consumer.close()
+    client.close()
+    exit(0)
+
+
 if __name__ == "__main__":
     logging.info("Main Process Started")
 
@@ -302,51 +312,52 @@ if __name__ == "__main__":
                 logging.debug("No new messages received within timeout")
                 continue
             for topic_partition, messages in message.items():
-                try:
-                    if topic_partition.topic == "resume-upload":
-                        for message in messages:
-                            email, role, interview_id = processMessage(message)
-                            if email and role and interview_id:
-                                resume = fetchResume(email, interview_id)
-                                if not resume:
-                                    continue
-                                questions, expected_answers = generateQuestions(resume, role)
-                                if not questions or not expected_answers:
-                                    continue
-                                if not sendQuestions(
-                                    email,
-                                    interview_id,
-                                    questions,
-                                    expected_answers,
-                                ):
-                                    continue
-                    elif topic_partition.topic == "feedback-request":
-                        for message in messages:
-                            email, role, interview_id = processMessage(message)
-                            if email and role and interview_id:
-                                answers = fetchAnswers(email, interview_id)
-                                if not answers:
-                                    continue
-                                questions = [q["question"] for q in answers]
-                                expected_answers = [q["expectedAnswer"] for q in answers]
-                                given_answers = [q["userAnswer"] for q in answers]
-                                similarity_score = calculateSimilarityScore(given_answers, expected_answers)
-                                user_feedback = generateFeedback(
-                                    questions,
-                                    given_answers,
-                                    expected_answers,
-                                    role,
-                                    similarity_score,
-                                )
-                                if not sendFeedback(
-                                    email,
-                                    interview_id,
-                                    user_feedback,
-                                    similarity_score,
-                                ):
-                                    continue
-                except Exception as e:
-                    logging.error(f"Unexpected error in inner loop: {e}")
+                if topic_partition.topic == "resume-upload":
+                    for message in messages:
+                        email, role, interview_id = processMessage(message)
+                        if email and role and interview_id:
+                            resume = fetchResume(email, interview_id)
+                            if not resume:
+                                continue
+                            questions, expected_answers = generateQuestions(resume, role)
+                            if not questions or not expected_answers:
+                                continue
+                            if not sendQuestions(
+                                email,
+                                interview_id,
+                                questions,
+                                expected_answers,
+                            ):
+                                continue
+                elif topic_partition.topic == "feedback-request":
+                    for message in messages:
+                        email, role, interview_id = processMessage(message)
+                        if email and role and interview_id:
+                            answers = fetchAnswers(email, interview_id)
+                            if not answers:
+                                continue
+                            questions = [q["question"] for q in answers]
+                            expected_answers = [q["expectedAnswer"] for q in answers]
+                            given_answers = [q["userAnswer"] for q in answers]
+                            similarity_score = calculateSimilarityScore(given_answers, expected_answers)
+                            user_feedback = generateFeedback(
+                                questions,
+                                given_answers,
+                                expected_answers,
+                                role,
+                                similarity_score,
+                            )
+                            if not sendFeedback(
+                                email,
+                                interview_id,
+                                user_feedback,
+                                similarity_score,
+                            ):
+                                continue
         except Exception as e:
             logging.error(f"Unexpected error in main loop: {e}")
             time.sleep(5)
+            continue
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
