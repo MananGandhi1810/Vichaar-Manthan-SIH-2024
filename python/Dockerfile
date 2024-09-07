@@ -10,4 +10,4 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY . .
 ENV PYTHONUNBUFFERED=1
 ENV DONTWRITEBYTECODE=1
-CMD ["python", "./main.py"]
+CMD ["python", "main.py"]
