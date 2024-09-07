@@ -49,12 +49,12 @@ services:
             - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
 
     zookeeper:
-        image: wurstmeister/zookeeper:latest
+        image: apache/zoopkeeper:latest
         ports:
             - 2181:2181/tcp
 
     kafka:
-        image: wurstmeister/kafka:latest
+        image: apache/kafka:latest
         restart: unless-stopped
         ports:
             - 9092:9092/tcp
