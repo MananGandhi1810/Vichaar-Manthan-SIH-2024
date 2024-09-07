@@ -22,6 +22,10 @@ logging.basicConfig(
 )
 logging.getLogger("kafka").setLevel(logging.WARNING)
 
+if os.getenv("DEBUG") == "true":
+    logging.getLogger().setLevel(logging.DEBUG)
+    logging.debug("Debug mode enabled")
+
 
 consumer = KafkaConsumer(bootstrap_servers=os.getenv("KAFKA_BROKER"), api_version=(2, 6, 0), group_id="vichaar-manthan-sih", auto_offset_reset="earliest")
 client = MongoClient(os.getenv("DB_URI"))
