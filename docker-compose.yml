@@ -49,7 +49,7 @@ services:
             - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
 
     zookeeper:
-        image: apache/zoopkeeper:latest
+        image: zoopkeeper:latest
         ports:
             - 2181:2181/tcp
 
