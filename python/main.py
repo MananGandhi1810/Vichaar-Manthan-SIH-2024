@@ -11,14 +11,13 @@ from langchain_community.document_loaders import PyPDFLoader
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer, util
 
-warnings.filterwarnings("ignore") 
-load_dotenv()
 
-consumer = KafkaConsumer(bootstrap_servers = os.getenv("KAFKA_BROKER"))
+load_dotenv()
+warnings.filterwarnings("ignore")
+
+consumer = KafkaConsumer(bootstrap_servers=os.getenv("KAFKA_BROKER"))
 client = MongoClient(os.getenv("DB_URI"))
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
-collection = client["vichaar_manthan_sih_db"]["users"]
 
 
 def processMessage(message):
@@ -26,67 +25,35 @@ def processMessage(message):
 
     try:
         data = json.loads(message.value.decode("utf-8"))
-        return data["email"], data["role"], data["id"]
+        return str(data["email"]), str(data["role"]), int(data["id"])
     except (json.JSONDecodeError, KeyError) as e:
         print(f"Error processing Kafka message: {e}")
 
-def get_resume_data_by_email_role_id(email, role, interview_id):
-    """Retrieves resume data based on email, role, and interview ID."""
 
-    user = collection.find_one({"email": email}, {"interviews": 1}) 
+def getResume(email, interview_id):
+    """Retrieves resume data based on email and interview ID."""
 
-    if user and "interviews" in user:
-        matching_interview = next(
-            (
-                interview
-                for interview in user["interviews"]
-                if interview["role"] == role and interview["id"] == interview_id
-            ),
-            None,
-        )
+    user = collection.find_one(
+        {"email": email}, {"interviews": {"$elemMatch": {"id": interview_id}}}
+    )
 
-        if matching_interview:
-            return matching_interview.get("resumeData")
+    if user and "interviews" in user and user["interviews"]:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf_file:
+            temp_pdf_file.write(user["interviews"][0].get("resumeData"))
+            temp_pdf_path = temp_pdf_file.name
 
-    return None
+        docLoader = PyPDFLoader(temp_pdf_path)
+        document = docLoader.load()
+        text_content = document[0].page_content
 
-def get_answers_by_email_role_id(email, role, interview_id):
-    """Retrieves user answers based on email, role, and interview ID."""
+        os.remove(temp_pdf_path)
 
-    user = collection.find_one({"email": email}, {"interviews": 1})
-
-    if user and "interviews" in user:
-        matching_interview = next(
-            (
-                interview
-                for interview in user["interviews"]
-                if interview["role"] == role and interview["id"] == interview_id
-            ),
-            None,
-        )
-
-        if matching_interview:
-            return matching_interview.get("questions")
+        return text_content
 
     return None
 
 
-def binary2text(resume_data):
-    """Converts binary PDF data to text."""
-    
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf_file:
-        temp_pdf_file.write(resume_data)
-        temp_pdf_path = temp_pdf_file.name
-
-    docLoader = PyPDFLoader(temp_pdf_path)
-    document = docLoader.load()
-    text_content = document[0].page_content
-
-    os.remove(temp_pdf_path)
-
-    return text_content
-
-def generate_questions_and_answers(resume_text, role):
+def generateQuestions(resume_text, role):
     """Generates technical interview questions and their expected answers based on a resume text."""
 
     prompt = f"""
@@ -94,7 +61,7 @@ def generate_questions_and_answers(resume_text, role):
 
     {resume_text}
 
-    Generate 5 technical interview questions for the role of {role} and their expected answers in a fixed format like this:
+    Generate 5 relevant technical interview questions for the role of {role} and their expected answers in a fixed format like this:
 
     Questions:
     1.
@@ -110,37 +77,70 @@ def generate_questions_and_answers(resume_text, role):
     4.
     5.
 
-    Note: Do not use any markdown or special characters.
+    Note: Do not use any markdown or special characters. Make sure the questions can be answered verbally.
     """
 
     try:
-        response = palm.GenerativeModel('gemini-1.0-pro-latest').generate_content(prompt)
-        return response.candidates[0].content.parts[0].text
+        response = palm.GenerativeModel("gemini-1.0-pro-latest").generate_content(
+            prompt
+        )
+
+        questions_part, answers_part = (
+            response.candidates[0].content.parts[0].text.split("Answers:", 1)
+        )
+
+        pattern = r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)"
+
+        questions = re.findall(pattern, questions_part, re.DOTALL)
+        answers = re.findall(pattern, answers_part, re.DOTALL)
+
+        questions = [q.strip() for q in questions]
+        answers = [a.strip() for a in answers]
+
+        return questions, answers
     except Exception as e:
-        return f"Error generating questions and answers: {e}" 
+        return f"Error generating questions and answers: {e}", None
 
 
-def extract_questions_and_answers(text):
-    """Extracts questions and answers from text formatted with numbered questions and answers."""
+def sendQuestions(email, interview_id, ques, exans):
+    """Inserts questions and expected answers into MongoDB."""
 
-    try:
-        questions_part, answers_part = text.split("Answers:", 1)
-    except ValueError:
-        raise ValueError("Input text must contain both 'Questions:' and 'Answers:' sections.")
+    user = collection.find_one({"email": email})
 
-    pattern = r"(?<=\d\.\s)(.*?)(?=\d\.\s|$)"
+    if user and "interviews" in user:
+        for i, interview in enumerate(user["interviews"]):
+            if interview["id"] == interview_id:
+                for question, expected_answer in zip(ques, exans):
+                    new_question = {
+                        "question": question,
+                        "userAnswer": "",
+                        "expectedAnswer": expected_answer,
+                    }
+                    collection.update_one(
+                        {"email": email, f"interviews.{i}.id": interview_id},
+                        {
+                            "$push": {f"interviews.{i}.questions": new_question},
+                            "$set": {f"interviews.{i}.isResumeProcessed": True},
+                        },
+                    )
+                return True
+    return False
 
-    questions = re.findall(pattern, questions_part, re.DOTALL)
-    answers = re.findall(pattern, answers_part, re.DOTALL)
 
-    questions = [q.strip() for q in questions]
-    answers = [a.strip() for a in answers]
+def getAnswers(email, interview_id):
+    """Retrieves user answers based on email and interview ID."""
 
-    return questions, answers
+    user = collection.find_one(
+        {"email": email}, {"interviews": {"$elemMatch": {"id": interview_id}}}
+    )
+
+    if user and "interviews" in user and user["interviews"]:
+        return user["interviews"][0].get("questions")
+
+    return None
 
 
-
-def calculate_similarity_score(given_answers, expected_answers):
+def calculateSimilarityScore(given_answers, expected_answers):
     """Calculates the similarity score between given and expected answers using SentenceTransformer."""
 
     if len(given_answers) != len(expected_answers):
@@ -152,103 +152,153 @@ def calculate_similarity_score(given_answers, expected_answers):
     similarities = util.cos_sim(given_embeddings, expected_embeddings)
     total_similarity = similarities.diagonal().sum().item()
 
-    return (total_similarity / len(given_answers)) * 5
+    return round((total_similarity / len(given_answers)) * 5, 2)
 
 
-def send_to_mongo(email, role, interview_id, ques, exans):
-    """Inserts questions and expected answers into MongoDB."""
+def generateFeedback(question, given_answers, expected_answers, role, similarity_score):
+    """Generates technical interview questions and their expected answers based on a resume text."""
 
-    for question, expected_answer in zip(ques, exans):
-        update = insert_question_by_email_role_id(
-            email,
-            role,
-            interview_id,
-            {"question": question, "userAnswer": "", "expectedAnswer": expected_answer},
-        ) 
-        if update == False:
-            print("Error inserting question into MongoDB")
-            return False
+    question = "\n".join(question)
+    given_answers = "\n".join(given_answers)
+    expected_answers = "\n".join(expected_answers)
+
+    prompt = f"""
+    Based on the following technical interview questions and answers for the role of {role}:
+
+    Questions:
+    {question}
+
+    Given Answers:
+    {given_answers}
+
+    Expected Answers:
+    {expected_answers}
+
+    Calculated Cosine Similarity (Out of 5): 
+    {similarity_score}
+
+    Provide relevant first person feedback as an interviewer in a few points. Be blunt, but constructive and helpful.
+
+    Note: Do not use any markdown or special characters. Make sure the feedback is in first person.
+    """
+
+    try:
+        response = palm.GenerativeModel("gemini-1.0-pro-latest").generate_content(
+            prompt
+        )
+
+        return response.candidates[0].content.parts[0].text
+    except Exception as e:
+        return f"Error generating feedback: {e}"
 
 
-def insert_question_by_email_role_id(email, role, interview_id, new_question):
+def sendFeedback(email, interview_id, feedback, similarity_score):
+    """Inserts feedback into MongoDB."""
+
     user = collection.find_one({"email": email})
 
     if user and "interviews" in user:
         for i, interview in enumerate(user["interviews"]):
-            if interview["role"] == role and interview["id"] == interview_id:
+            if interview["id"] == interview_id:
                 collection.update_one(
                     {"email": email, f"interviews.{i}.id": interview_id},
                     {
-                        "$push": {f"interviews.{i}.questions": new_question},
-                        "$set": {f"interviews.{i}.isResumeProcessed": True},
+                        "$set": {
+                            f"interviews.{i}.feedback": feedback,
+                            f"interviews.{i}.rating": similarity_score,
+                        },
                     },
                 )
                 return True
     return False
 
 
-def main():
+if __name__ == "__main__":
     print("Main Process Started")
 
-    palm.configure(api_key = os.getenv("GOOGLE_API_KEY"))
+    collection = client["vichaar_manthan_sih_db"]["users"]
+    print("Connected to MongoDB")
+
+    palm.configure(api_key=os.getenv("GOOGLE_API_KEY"))
     print("Google API key configured")
 
-    consumer.subscribe(topics = ['resume-upload', 'feedback-request'])
+    consumer.subscribe(topics=["resume-upload", "feedback-request"])
     print("Subscribed to topics: " + str(consumer.subscription()))
-    
 
     while True:
         message = consumer.poll(timeout_ms=100)
         if message is not None:
             for topic_partition, messages in message.items():
-                if topic_partition.topic == 'resume-upload':
+                if topic_partition.topic == "resume-upload":
                     for message in messages:
                         email, role, interview_id = processMessage(message)
                         if email and role and interview_id:
-                            print("Processing resume for: " + email + ", " + role + ", " + str(interview_id))
+                            print(
+                                "Log: Processing resume for: "
+                                + email
+                                + ", "
+                                + role
+                                + ", "
+                                + str(interview_id)
+                            )
 
-                            resume_data = get_resume_data_by_email_role_id(email, role, interview_id)
-                            if not resume_data:
-                                print("Resume data not found")
+                            resume = getResume(email, interview_id)
+                            if not resume:
+                                print("Error: Resume not found")
                                 continue
 
-                            resume_text = binary2text(resume_data)
+                            ques, exans = generateQuestions(resume, role)
 
-                            questions_and_exanswers = generate_questions_and_answers(resume_text, role)
-
-                            if questions_and_exanswers is None:
-                                print("Error generating questions and answers")
+                            if not ques or not exans:
+                                print("Error: Questions not generated")
                                 continue
 
-                            ques, exans = extract_questions_and_answers(questions_and_exanswers)
-
-                            if send_to_mongo(email, role, interview_id, ques, exans) == False:
-                                print("Error sending data to MongoDB")
+                            if sendQuestions(email, interview_id, ques, exans) == False:
+                                print("Error: Questions not sent to MongoDB")
                                 continue
 
-                            print("Finished processing resume")
+                            print("Log: Completed processing resume for: " + email)
 
-                elif topic_partition.topic == 'feedback-request':
+                elif topic_partition.topic == "feedback-request":
                     for message in messages:
                         email, role, interview_id = processMessage(message)
                         if email and role and interview_id:
-                            print("Processing feedback request for: " + email + ", " + role + ", " + str(interview_id))
+                            print(
+                                "Log: Feedback request for: "
+                                + email
+                                + ", "
+                                + role
+                                + ", "
+                                + str(interview_id)
+                            )
 
-                            user_answers = get_answers_by_email_role_id(email, role, interview_id)
-                            print(user_answers)
+                            answers = getAnswers(email, interview_id)
 
-                            expected_answers = [
-                                question["expectedAnswer"] for question in user_answers["questions"]
-                            ]
+                            if not answers:
+                                print("Error: Answers not found")
+                                continue
 
-                            given_answers = [question["userAnswer"] for question in user_answers["questions"]]
+                            questions = [q["question"] for q in answers]
+                            expected_answers = [q["expectedAnswer"] for q in answers]
+                            given_answers = [q["userAnswer"] for q in answers]
 
-                            print(expected_answers, given_answers)
+                            similarity_score = calculateSimilarityScore(
+                                given_answers, expected_answers
+                            )
+                            user_feedback = generateFeedback(
+                                questions,
+                                given_answers,
+                                expected_answers,
+                                role,
+                                similarity_score,
+                            )
 
-                            similarity_score = calculate_similarity_score(given_answers, expected_answers)
-
-                            print(similarity_score)
-                            print("Finished processing feedback request")
-
-if __name__ == "__main__":
-    main()
+                            if (
+                                sendFeedback(
+                                    email, interview_id, user_feedback, similarity_score
+                                )
+                                == False
+                            ):
+                                print("Error: Feedback not sent to MongoDB")
+                                continue
+                            print("Log: Completed feedback request for: " + email)

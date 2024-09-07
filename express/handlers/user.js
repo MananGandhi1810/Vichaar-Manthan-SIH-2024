@@ -118,10 +118,10 @@ const getQuestionsHandler = async (req, res) => {
 
   const userQuestions = userInterviews.sort((a, b) => a.time - b.time)[0];
 
-  if (userInterviews.sort((a, b) => a.time - b.time)[0].questions.length == 0) {
+  if (!userQuestions.isResumeProcessed) {
     return res.status(404).json({
       success: false,
-      message: "Questions are being processed",
+      message: "Resume is being processed",
       data: null,
     });
   }
@@ -187,7 +187,7 @@ const setAnswerHandler = async (req, res) => {
 
   dbUser.save();
 
-  if (userQuestions.questions.filter((e) => e.userAnswer == null).length == 0) {
+  if (userQuestions.questions.filter((e) => e.userAnswer == '').length == 0) {
     await sendQueueMessage(
       "feedback-request",
       JSON.stringify({

@@ -181,7 +181,7 @@ function InterviewPage() {
             <main className="flex flex-row justify-center mt-6 w-full max-w-4xl px-4">
                 {loading ? (
                     <div className="text-center">
-                        <p>Processing questions, please wait...</p>
+                        <p>Processing resume, please wait...</p>
                     </div>
                 ) : (
                     <>
@@ -193,7 +193,7 @@ function InterviewPage() {
                             </div>
                             <div className="bg-white p-4 rounded shadow-sm w-full flex-grow overflow-auto">
                                 <h3 className="text-lg font-semibold mb-2">
-                                    Your Answers:
+                                    Your Answer:
                                 </h3>
                                 <ul className="list-disc pl-5">
                                     {results.map((result) => (

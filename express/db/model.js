@@ -38,8 +38,8 @@ const userSchema = new Schema({
           expectedAnswer: String,
         },
       ],
-      feedback: String,
-      rating: Number,
+      feedback: { type: String, default: "" },
+      rating: { type: Number, default: 0.0 }
     },
   ],
 });
