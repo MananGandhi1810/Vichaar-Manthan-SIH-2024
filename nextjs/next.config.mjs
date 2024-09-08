@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'standalone',
+    output: "standalone",
     env: {
         NEXT_PUBLIC_API_URL: "http://localhost:3000",
     },
