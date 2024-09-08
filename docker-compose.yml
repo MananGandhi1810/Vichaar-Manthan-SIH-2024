@@ -13,7 +13,7 @@ services:
         depends_on:
             - mongo
             - kafka
-            
+
     python:
         build: ./python
         restart: unless-stopped
