@@ -1,6 +1,8 @@
+name: vm-sih
+
 services:
     express:
-        build: ./express
+        build: ./express:latest
         restart: unless-stopped
         ports:
             - 3000:3000/tcp
@@ -8,30 +10,33 @@ services:
             - ./.env:/app/.env
             # - /path/to/ssl/fullchain.pem:/usr/src/app/ssl/fullchain.pem
             # - /path/to/ssl/privkey.pem:/usr/src/app/ssl/privkey.pem
-        environment:
-            NODE_ENV: production
         depends_on:
-            - mongo
-            - kafka
+            mongo:
+                condition: service_healthy
+            kafka:
+                condition: service_healthy
             
     python:
-        build: ./python
+        build: ./python:latest
         restart: unless-stopped
         volumes:
             - ./.env:/app/.env
         depends_on:
-            - mongo
-            - kafka
+            mongo:
+                condition: service_healthy
+            kafka:
+                condition: service_healthy
 
     nextjs:
-        build: ./nextjs
+        build: ./nextjs:latest
         restart: unless-stopped
         ports:
             - 80:3000/tcp
         volumes:
             - ./.env:/app/.env
         depends_on:
-            - express
+            express:
+                condition: service_started
 
     mongo:
         image: mongo:jammy
@@ -47,6 +52,11 @@ services:
         volumes:
             - db-data:/data/db
             - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+        healthcheck:
+            test: ["CMD","mongosh", "--eval", "db.adminCommand('ping')"]
+            interval: 5s
+            timeout: 5s
+            retries: 10
 
     zookeeper:
         image: zookeeper:latest
@@ -68,9 +78,15 @@ services:
             KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
             KAFKA_CREATE_TOPICS: "resume-upload:1:1,feedback-request:1:1"
         depends_on:
-            - zookeeper
+            zookeeper:
+                condition: service_started
         volumes:
             - kafka-data:/kafka
+        healthcheck:
+            test: kafka-cluster.sh cluster-id --bootstrap-server localhost:9092 || exit 1
+            interval: 5s
+            timeout: 5s
+            retries: 10
 
 volumes:
     db-data:
