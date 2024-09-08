@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import useSpeechToText from "react-hook-speech-to-text";
+import { useNextjsAudioToTextRecognition } from "nextjs-audio-to-text-recognition";
 import Webcam from "react-webcam";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -10,16 +10,11 @@ import { Button } from "@/components/ui/button";
 function InterviewPage() {
     const router = useRouter();
     const {
-        error,
-        interimResult,
-        isRecording,
-        results,
-        startSpeechToText,
-        stopSpeechToText,
-    } = useSpeechToText({
-        continuous: true,
-        useLegacyResults: false,
-    });
+        isListening,
+        transcript,
+        startListening,
+        stopListening,
+    } = useNextjsAudioToTextRecognition({ lang: 'en-IN', continuous: true });
 
     const [question, setQuestion] = useState("");
     const [questionIndex, setQuestionIndex] = useState(0);
@@ -31,7 +26,11 @@ function InterviewPage() {
     const authToken = sessionStorage.getItem("authToken");
     const { selectedRole, id } = userData || {};
 
+
+    // Fetch questions for the selected role
     useEffect(() => {
+        let intervalId;
+
         const fetchQuestions = async () => {
             try {
                 const response = await fetch(
@@ -42,66 +41,60 @@ function InterviewPage() {
                             "Content-Type": "application/json",
                             Authorization: `Bearer ${authToken}`,
                         },
-                    },
+                    }
                 );
 
-                if (!response.ok) {
-                    throw new Error("Failed to fetch questions");
-                }
+                if (response.ok) {
+                    const data = await response.json();
 
-                const data = await response.json();
-                setQuestions(data.data.questions.map((e) => e.question));
-                console.log(questions);
-                setQuestion(data.data.questions[0].question);
-                setLoading(false);
+                    setQuestions(data.data.questions.map((e) => e.question));
+                    setQuestion(data.data.questions[0].question);
+                    setLoading(false);
+                    clearInterval(intervalId);
+                }
             } catch (error) {
                 console.error("Failed to fetch questions:", error);
             }
         };
 
-        const intervalId = setInterval(fetchQuestions, 10000);
+        fetchQuestions();
+        intervalId = setInterval(fetchQuestions, 3000);
+
         return () => clearInterval(intervalId);
     }, [selectedRole, id]);
 
+
+    const handleBeforeUnload = (e) => {
+        e.preventDefault();
+        e.returnValue = '';
+    };
+
+
+    // Prevent user from leaving the page during the interview process
     useEffect(() => {
         document.addEventListener("contextmenu", (e) => e.preventDefault());
-        window.addEventListener("beforeunload", (e) => {
-            e.preventDefault();
-            e.returnValue = "";
-        });
+        window.addEventListener("beforeunload", handleBeforeUnload);
         document.addEventListener("visibilitychange", handleVisibilityChange);
-
         return () => {
-            document.removeEventListener("contextmenu", (e) =>
-                e.preventDefault(),
-            );
-            window.removeEventListener("beforeunload", (e) => {
-                e.preventDefault();
-                e.returnValue = "";
-            });
-            document.removeEventListener(
-                "visibilitychange",
-                handleVisibilityChange,
-            );
+            document.removeEventListener("contextmenu", (e) => e.preventDefault());
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
     }, []);
 
+
+    // Alert user if they try to leave the page during the interview
     const handleVisibilityChange = () => {
         if (document.visibilityState === "hidden") {
             alert(
-                "You are leaving the interview page. Please stay on this page to continue the interview.",
+                "You are not allowed to leave the page during the interview. Please complete the interview.",
             );
         }
     };
 
+    // Handle the next question
     const handleNextQuestion = async () => {
-        const currentAnswer = results
-            .map((result) => result.transcript)
-            .join(" ");
-        const newIndex = questionIndex + 1;
-
         try {
-            // Send the current answer to the API
             await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/user/questions/${selectedRole}/${id}/${questionIndex}`,
                 {
@@ -110,44 +103,38 @@ function InterviewPage() {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${authToken}`,
                     },
-                    body: JSON.stringify({ answer: currentAnswer }),
+                    body: JSON.stringify({ answer: transcript }),
                 },
             );
 
-            // If there are more questions, load the next question
+            const newIndex = questionIndex + 1;
+
             if (newIndex < questions.length) {
+                stopListening();
+
                 setQuestionIndex(newIndex);
                 setQuestion(questions[newIndex]);
-
-                // Clear the results for the new question
-                stopSpeechToText();
-                startSpeechToText();
             } else {
-                // If it's the last question, end the interview
                 handleEndInterview();
             }
         } catch (error) {
             console.error(
-                "Failed to submit the answer or fetch the next question:",
+                "Failed to submit answer for question",
                 error,
             );
         }
     };
 
+    // Handle the end of the interview
     const handleEndInterview = () => {
         setInterviewFinished(true);
-        stopSpeechToText();
+        stopListening();
+
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+
         router.push("/feedback");
     };
-
-    useEffect(() => {
-        if (interviewFinished) {
-            console.log("Interview finished. Results:", results);
-        }
-    }, [interviewFinished, results]);
-
-    if (error)
-        return <p>Web Speech API is not available in this browser 🤷‍</p>;
 
     return (
         <div className="flex flex-col items-center min-h-screen bg-gray-100 text-gray-800">
@@ -187,27 +174,18 @@ function InterviewPage() {
                     <>
                         <div className="flex flex-col items-start bg-blue-100 p-6 rounded-lg shadow-md w-1/3">
                             <div className="bg-white p-4 rounded shadow-sm mb-4">
-                                <h2 className="text-lg font-semibold">
-                                    {question}
-                                </h2>
+                                <h3 className="text-lg font-bold mb-2">
+                                    Question {questionIndex + 1}:
+                                </h3>
+                                <p className="text-sm">{question}</p>
                             </div>
                             <div className="bg-white p-4 rounded shadow-sm w-full flex-grow overflow-auto">
                                 <h3 className="text-lg font-semibold mb-2">
                                     Your Answer:
                                 </h3>
                                 <ul className="list-disc pl-5">
-                                    {results.map((result) => (
-                                        <li
-                                            key={result.timestamp}
-                                            className="mb-1"
-                                        >
-                                            {result.transcript}
-                                        </li>
-                                    ))}
-                                    {interimResult && (
-                                        <li className="italic">
-                                            {interimResult}
-                                        </li>
+                                    {transcript && (
+                                        <li className="text-sm">{transcript}</li>
                                     )}
                                 </ul>
                             </div>
@@ -216,37 +194,52 @@ function InterviewPage() {
                             <Webcam
                                 audio={false}
                                 screenshotFormat="image/jpeg"
-                                width={620}
-                                height={400}
+                                width={640}
+                                height={360}
                                 className="border border-gray-300 shadow-md rounded-md"
                             />
                             <div className="mt-4 flex gap-4">
                                 <Button
-                                    onClick={
-                                        isRecording
-                                            ? stopSpeechToText
-                                            : startSpeechToText
-                                    }
+                                    onClick={startListening}
                                     disabled={interviewFinished}
-                                    className="bg-blue-600 text-white hover:bg-blue-700"
+                                    className={`${isListening ? "animate-pulse" : ""
+                                        } bg-blue-600 text-white hover:bg-blue-700`}
+                                    style={{
+                                        backgroundColor: isListening ? "red" : "blue",
+                                    }}
                                 >
-                                    {isRecording
-                                        ? "Stop Recording"
-                                        : "Start Recording"}
+                                    {isListening ? "Recording" : "Start Recording"}
                                 </Button>
                                 <Button
                                     onClick={handleNextQuestion}
                                     disabled={interviewFinished}
                                     className="bg-blue-600 text-white hover:bg-blue-700"
+                                    style={{
+                                        display:
+                                            questionIndex < questions.length - 1
+                                                ? "block"
+                                                : "none",
+                                        pointerEvents: transcript ? "auto" : "none",
+                                        opacity: transcript ? "1" : "0.7",
+
+                                    }}
                                 >
-                                    Next
+                                    Next Question
                                 </Button>
                                 <Button
-                                    onClick={handleEndInterview}
+                                    onClick={handleNextQuestion}
                                     disabled={interviewFinished}
                                     className="bg-red-600 text-white hover:bg-red-700"
+                                    style={{
+                                        display:
+                                            questionIndex === questions.length - 1
+                                                ? "block"
+                                                : "none",
+                                        pointerEvents: transcript ? "auto" : "none",
+                                        opacity: transcript ? "1" : "0.7",
+                                    }}
                                 >
-                                    End
+                                    End Interview
                                 </Button>
                             </div>
                         </div>

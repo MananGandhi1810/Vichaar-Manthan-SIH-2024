@@ -79,6 +79,7 @@ const uploadResumeHandler = async (req, res) => {
         await sendQueueMessage(
             "resume-upload",
             JSON.stringify({
+                name: user.name,
                 email: user.email,
                 role: role,
                 id: generatedId,
@@ -193,6 +194,7 @@ const setAnswerHandler = async (req, res) => {
         await sendQueueMessage(
             "feedback-request",
             JSON.stringify({
+                name: user.name,
                 email: user.email,
                 role: role,
                 id: id,

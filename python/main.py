@@ -38,13 +38,14 @@ def processMessage(message):
     try:
         data = json.loads(message.value.decode("utf-8"))
         logging.debug(f"Processing Kafka message with data: {data}")
-        email, role, interview_id = (
+        name, email, role, interview_id = (
+            str(data["name"]),
             str(data["email"]),
             str(data["role"]),
             int(data["id"]),
         )
-        logging.debug(f"Extracted: email={email}, role={role}, interview_id={interview_id}")
-        return email, role, interview_id
+        logging.debug(f"Extracted: name={name}, email={email}, role={role}, interview_id={interview_id}")
+        return name, email, role, interview_id
     except (json.JSONDecodeError, KeyError) as e:
         logging.error(f"Error processing Kafka message: {e}, message content: {message.value}")
 
@@ -216,7 +217,7 @@ def calculateSimilarityScore(given_answers, expected_answers):
     return score
 
 
-def generateFeedback(question, given_answers, expected_answers, role, similarity_score):
+def generateFeedback(question, given_answers, expected_answers, name, role, similarity_score):
     """Generates feedback based on interview questions and answers."""
 
     logging.info(f"Generating feedback for role={role}, similarity_score={similarity_score}")
@@ -240,7 +241,7 @@ def generateFeedback(question, given_answers, expected_answers, role, similarity
     Calculated Cosine Similarity (Out of 5): 
     {similarity_score}
 
-    Provide relevant first person feedback as an interviewer in a few points. Be blunt, but constructive and helpful.
+    Provide relevant first person feedback to {name.split(" ")[0]} from the perspective of an interviewer in few points. Be blunt, but constructive and helpful.
 
     Note: Do not use any markdown or special characters. Make sure the feedback is in first person.
     """
@@ -313,7 +314,7 @@ if __name__ == "__main__":
             for topic_partition, messages in message.items():
                 if topic_partition.topic == "resume-upload":
                     for message in messages:
-                        email, role, interview_id = processMessage(message)
+                        name, email, role, interview_id = processMessage(message)
                         if email and role and interview_id:
                             resume = fetchResume(email, interview_id)
                             if not resume:
@@ -330,7 +331,7 @@ if __name__ == "__main__":
                                 continue
                 elif topic_partition.topic == "feedback-request":
                     for message in messages:
-                        email, role, interview_id = processMessage(message)
+                        name, email, role, interview_id = processMessage(message)
                         if email and role and interview_id:
                             answers = fetchAnswers(email, interview_id)
                             if not answers:
@@ -343,6 +344,7 @@ if __name__ == "__main__":
                                 questions,
                                 given_answers,
                                 expected_answers,
+                                name,
                                 role,
                                 similarity_score,
                             )
