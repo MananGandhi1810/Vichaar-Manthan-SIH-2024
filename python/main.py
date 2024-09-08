@@ -243,7 +243,7 @@ def generateFeedback(question, given_answers, expected_answers, name, role, simi
 
     Provide relevant first person feedback to {name.split(" ")[0]} from the perspective of an interviewer in few points. Be blunt, but constructive and helpful.
 
-    Note: Do not use any markdown or special characters. Make sure the feedback is in first person.
+    Note: Do not use any markdown or special characters. The interview was conducted using speech to text so there may be grammatical errors in the answers, ignore them.
     """
 
     try:
