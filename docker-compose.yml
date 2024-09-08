@@ -2,7 +2,7 @@ name: vm-sih
 
 services:
     express:
-        build: ./express:latest
+        build: ./express
         restart: unless-stopped
         ports:
             - 3000:3000/tcp
@@ -17,7 +17,7 @@ services:
                 condition: service_healthy
             
     python:
-        build: ./python:latest
+        build: ./python
         restart: unless-stopped
         volumes:
             - ./.env:/app/.env
@@ -28,7 +28,7 @@ services:
                 condition: service_healthy
 
     nextjs:
-        build: ./nextjs:latest
+        build: ./nextjs
         restart: unless-stopped
         ports:
             - 80:3000/tcp
