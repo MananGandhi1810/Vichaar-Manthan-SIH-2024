@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-
 function FeedbackPage() {
     const router = useRouter();
     const [feedback, setFeedback] = useState("");
@@ -27,23 +26,22 @@ function FeedbackPage() {
                             "Content-Type": "application/json",
                             Authorization: `Bearer ${authToken}`,
                         },
-                    }
+                    },
                 );
 
                 if (response.ok) {
                     const data = await response.json();
 
-
                     if (data.data.feedback) {
                         const parsedFeedback = data.data.feedback
-                            .replace(/\\n/g, '\n')
-                            .replace(/^- /gm, '\u2022 ')
+                            .replace(/\\n/g, "\n")
+                            .replace(/^- /gm, "\u2022 ")
                             .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
                             .replace(/\*(.*?)\*/g, "<i>$1</i>")
                             .replace(/`(.*?)`/g, "<code>$1</code>")
                             .replace(/~~(.*?)~~/g, "<del>$1</del>")
                             .replace(/__(.*?)__/g, "<u>$1</u>")
-                            .replace(/(?:\r\n|\r|\n)/g, '<br>');
+                            .replace(/(?:\r\n|\r|\n)/g, "<br>");
                         setFeedback(parsedFeedback);
                     } else {
                         setFeedback("Feedback not available.");
@@ -109,8 +107,12 @@ function FeedbackPage() {
                             dangerouslySetInnerHTML={{ __html: feedback }}
                         />
                         <div className="flex items-center">
-                            <span className="text-lg font-bold mr-2">Rating:</span>
-                            <span className="text-2xl font-semibold">{rating} / 5</span>
+                            <span className="text-lg font-bold mr-2">
+                                Rating:
+                            </span>
+                            <span className="text-2xl font-semibold">
+                                {rating} / 5
+                            </span>
                         </div>
                         <div className="flex justify-center mt-4">
                             <button

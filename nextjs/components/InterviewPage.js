@@ -9,12 +9,8 @@ import { Button } from "@/components/ui/button";
 
 function InterviewPage() {
     const router = useRouter();
-    const {
-        isListening,
-        transcript,
-        startListening,
-        stopListening,
-    } = useNextjsAudioToTextRecognition({ lang: 'en-IN', continuous: true });
+    const { isListening, transcript, startListening, stopListening } =
+        useNextjsAudioToTextRecognition({ lang: "en-IN", continuous: true });
 
     const [question, setQuestion] = useState("");
     const [questionIndex, setQuestionIndex] = useState(0);
@@ -25,7 +21,6 @@ function InterviewPage() {
     const userData = JSON.parse(sessionStorage.getItem("userData"));
     const authToken = sessionStorage.getItem("authToken");
     const { selectedRole, id } = userData || {};
-
 
     // Fetch questions for the selected role
     useEffect(() => {
@@ -41,7 +36,7 @@ function InterviewPage() {
                             "Content-Type": "application/json",
                             Authorization: `Bearer ${authToken}`,
                         },
-                    }
+                    },
                 );
 
                 if (response.ok) {
@@ -63,12 +58,10 @@ function InterviewPage() {
         return () => clearInterval(intervalId);
     }, [selectedRole, id]);
 
-
     const handleBeforeUnload = (e) => {
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = "";
     };
-
 
     // Prevent user from leaving the page during the interview process
     useEffect(() => {
@@ -76,12 +69,16 @@ function InterviewPage() {
         window.addEventListener("beforeunload", handleBeforeUnload);
         document.addEventListener("visibilitychange", handleVisibilityChange);
         return () => {
-            document.removeEventListener("contextmenu", (e) => e.preventDefault());
+            document.removeEventListener("contextmenu", (e) =>
+                e.preventDefault(),
+            );
             window.removeEventListener("beforeunload", handleBeforeUnload);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange,
+            );
         };
     }, []);
-
 
     // Alert user if they try to leave the page during the interview
     const handleVisibilityChange = () => {
@@ -118,10 +115,7 @@ function InterviewPage() {
                 handleEndInterview();
             }
         } catch (error) {
-            console.error(
-                "Failed to submit answer for question",
-                error,
-            );
+            console.error("Failed to submit answer for question", error);
         }
     };
 
@@ -131,7 +125,10 @@ function InterviewPage() {
         stopListening();
 
         window.removeEventListener("beforeunload", handleBeforeUnload);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        document.removeEventListener(
+            "visibilitychange",
+            handleVisibilityChange,
+        );
 
         router.push("/feedback");
     };
@@ -185,7 +182,9 @@ function InterviewPage() {
                                 </h3>
                                 <ul className="list-disc pl-5">
                                     {transcript && (
-                                        <li className="text-sm">{transcript}</li>
+                                        <li className="text-sm">
+                                            {transcript}
+                                        </li>
                                     )}
                                 </ul>
                             </div>
@@ -202,13 +201,18 @@ function InterviewPage() {
                                 <Button
                                     onClick={startListening}
                                     disabled={interviewFinished}
-                                    className={`${isListening ? "animate-pulse" : ""
-                                        } bg-blue-600 text-white hover:bg-blue-700`}
+                                    className={`${
+                                        isListening ? "animate-pulse" : ""
+                                    } bg-blue-600 text-white hover:bg-blue-700`}
                                     style={{
-                                        backgroundColor: isListening ? "red" : "blue",
+                                        backgroundColor: isListening
+                                            ? "red"
+                                            : "blue",
                                     }}
                                 >
-                                    {isListening ? "Recording" : "Start Recording"}
+                                    {isListening
+                                        ? "Recording"
+                                        : "Start Recording"}
                                 </Button>
                                 <Button
                                     onClick={handleNextQuestion}
@@ -219,9 +223,10 @@ function InterviewPage() {
                                             questionIndex < questions.length - 1
                                                 ? "block"
                                                 : "none",
-                                        pointerEvents: transcript ? "auto" : "none",
+                                        pointerEvents: transcript
+                                            ? "auto"
+                                            : "none",
                                         opacity: transcript ? "1" : "0.7",
-
                                     }}
                                 >
                                     Next Question
@@ -232,10 +237,13 @@ function InterviewPage() {
                                     className="bg-red-600 text-white hover:bg-red-700"
                                     style={{
                                         display:
-                                            questionIndex === questions.length - 1
+                                            questionIndex ===
+                                            questions.length - 1
                                                 ? "block"
                                                 : "none",
-                                        pointerEvents: transcript ? "auto" : "none",
+                                        pointerEvents: transcript
+                                            ? "auto"
+                                            : "none",
                                         opacity: transcript ? "1" : "0.7",
                                     }}
                                 >
