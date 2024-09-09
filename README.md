@@ -1,8 +1,24 @@
 # Vichaar Manthan - SIH 2024
 
-A proposed solution for problem statement #1653
+A Web based Selector-Applicant Simulation Software for SIH 2024.
 
-## Instructions
+## Stack
+
+-   [Node.js](https://nodejs.org/)
+-   [Express](https://expressjs.com/)
+-   [MongoDB](https://www.mongodb.com/)
+-   [Docker](https://www.docker.com/)
+-   [Docker Compose](https://docs.docker.com/compose/)
+-   [Apache Kafka](https://kafka.apache.org/)
+-   [Next.js](https://nextjs.org/)
+-   [Python](https://www.python.org/)
+-   [Gemini API](https://ai.google.dev/)
+
+## Architecture
+
+![Architecture](./assets/architecture.png)
+
+## How to run
 
 ```console
 git clone https://github.com/MananGandhi1810/Vichaar-Manthan-SIH-2024
