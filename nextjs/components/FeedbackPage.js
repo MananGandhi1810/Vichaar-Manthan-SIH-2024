@@ -37,7 +37,13 @@ function FeedbackPage() {
                     if (data.data.feedback) {
                         const parsedFeedback = data.data.feedback
                             .replace(/\\n/g, '\n')
-                            .replace(/^- /gm, '\u2022 ');
+                            .replace(/^- /gm, '\u2022 ')
+                            .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+                            .replace(/\*(.*?)\*/g, "<i>$1</i>")
+                            .replace(/`(.*?)`/g, "<code>$1</code>")
+                            .replace(/~~(.*?)~~/g, "<del>$1</del>")
+                            .replace(/__(.*?)__/g, "<u>$1</u>")
+                            .replace(/(?:\r\n|\r|\n)/g, '<br>');
                         setFeedback(parsedFeedback);
                     } else {
                         setFeedback("Feedback not available.");
@@ -98,7 +104,10 @@ function FeedbackPage() {
                 ) : (
                     <div className="bg-white p-6 rounded-lg shadow-md w-full">
                         <h2 className="text-2xl font-bold mb-4">Feedback</h2>
-                        <pre className="text-l mb-4 whitespace-pre-wrap" style={{ fontFamily: 'Arial, sans-serif' }}>{feedback}</pre>
+                        <div
+                            className="prose max-w-none"
+                            dangerouslySetInnerHTML={{ __html: feedback }}
+                        />
                         <div className="flex items-center">
                             <span className="text-lg font-bold mr-2">Rating:</span>
                             <span className="text-2xl font-semibold">{rating} / 5</span>
