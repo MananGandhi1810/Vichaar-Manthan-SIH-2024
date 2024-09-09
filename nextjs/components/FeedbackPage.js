@@ -101,7 +101,7 @@ function FeedbackPage() {
                         <pre className="text-l mb-4 whitespace-pre-wrap" style={{ fontFamily: 'Arial, sans-serif' }}>{feedback}</pre>
                         <div className="flex items-center">
                             <span className="text-lg font-bold mr-2">Rating:</span>
-                            <span className="text-2xl font-semibold">{rating}</span>
+                            <span className="text-2xl font-semibold">{rating} / 5</span>
                         </div>
                         <div className="flex justify-center mt-4">
                             <button
