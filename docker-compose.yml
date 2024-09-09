@@ -80,8 +80,6 @@ services:
         depends_on:
             zookeeper:
                 condition: service_started
-        volumes:
-            - kafka-data:/kafka
         healthcheck:
             test: kafka-cluster.sh cluster-id --bootstrap-server localhost:9092 || exit 1
             interval: 5s
@@ -90,4 +88,3 @@ services:
 
 volumes:
     db-data:
-    kafka-data:
