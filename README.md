@@ -1,6 +1,6 @@
 # Vichaar Manthan - SIH 2024
 
-A Web based Selector-Applicant Simulation Software for SIH 2024.
+A Web based Selector-Applicant Simulation Software for SIH 2024 by Team Vichaar Manthan.
 
 ## Stack
 
