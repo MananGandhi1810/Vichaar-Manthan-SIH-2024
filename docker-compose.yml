@@ -18,6 +18,7 @@ services:
 
     python:
         build: ./python
+        scale: 3
         restart: unless-stopped
         volumes:
             - ./.env:/app/.env
