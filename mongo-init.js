@@ -1,6 +1,6 @@
 db.createUser({
-    user: process.env.SIH_ADMIN_USERNAME,
-    pwd: process.env.SIH_ADMIN_PASSWORD,
+    user: process.env.AIP_ADMIN_USERNAME,
+    pwd: process.env.AIP_ADMIN_PASSWORD,
     roles: [
         {
             role: "readWrite",

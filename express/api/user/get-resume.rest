@@ -1,3 +1,0 @@
-GET http://localhost:3000/user/resume/applicant
-content-type: application/json
-authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVGVzdCBVc2VyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAZ21haWwuY29tIiwicGhvbmVOdW0iOiIrOTE5NzY5MDM4NDczIiwiaWF0IjoxNzI1Mzg2NjgzfQ.1k3Zd3rn3e1vx54QPrWx4tsXx2a6rEjfmJAbNq-5jxU

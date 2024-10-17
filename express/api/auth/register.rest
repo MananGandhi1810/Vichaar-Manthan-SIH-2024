@@ -1,9 +1,0 @@
-POST http://localhost:3000/auth/register
-content-type: application/json
-
-{
-  "email": "test-user@gmail.com",
-  "password": "testPass123@",
-  "name": "Test User",
-  "phoneNum": "+919769038473"
-} 

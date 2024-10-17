@@ -1,9 +1,9 @@
 import dynamic from "next/dynamic";
 
 const InterviewPage = dynamic(() => import("@/components/InterviewPage"), {
-    ssr: false,
+  ssr: false,
 });
 
 export default function Interview() {
-    return <InterviewPage />;
+  return <InterviewPage />;
 }

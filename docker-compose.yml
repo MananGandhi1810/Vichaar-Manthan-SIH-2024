@@ -1,4 +1,4 @@
-name: vm-sih
+name: aip
 
 services:
     express:
@@ -18,7 +18,6 @@ services:
 
     python:
         build: ./python
-        scale: 3
         restart: unless-stopped
         volumes:
             - ./.env:/app/.env
@@ -45,9 +44,9 @@ services:
         environment:
             MONGO_INITDB_ROOT_USERNAME: mongo-admin
             MONGO_INITDB_ROOT_PASSWORD: <password>
-            SIH_ADMIN_USERNAME: sih-admin
-            SIH_ADMIN_PASSWORD: <password>
-            MONGO_INITDB_DATABASE: vichaar_manthan_sih_db
+            AIP_ADMIN_USERNAME: aip-admin
+            AIP_ADMIN_PASSWORD: <password>
+            MONGO_INITDB_DATABASE: automated_interview_platform_db
         ports:
             - 27017:27017/tcp
         volumes:

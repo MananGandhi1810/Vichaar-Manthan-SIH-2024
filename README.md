@@ -1,6 +1,6 @@
-# Vichaar Manthan - SIH 2024
+# Automated Interview Platform
 
-A Web based Selector-Applicant Simulation Software for SIH 2024 by Team Vichaar Manthan.
+A automated online interview platform for the recruitment process.
 
 ## Stack
 
@@ -43,3 +43,7 @@ Start the application:
 ```console
 docker compose up -d
 ```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
